@@ -5,27 +5,25 @@ import json
 import os
 import sys
 
+from uagents_core.identity import Identity
 from uagents.communication import send_sync_message
 from uagents.resolver import RulesBasedResolver
-from backend.fetch_agent import(
+from backend.fetch_agent import (
+    agent_seed,
     InvestigationRequest,
     InvestigationResponse,
 )
 
-default_address = (
-    "agent1qw9yp4u3waeymzkf6gnm9ta5stsqu547mh37xg2setuq568t69vkcl0d5j7"
+default_address = "agent1qw9yp4u3waeymzkf6gnm9ta5stsqu547mh37xg2setuq568t69vkcl0d5j7"
 
-)
 
 async def investigate(payload: dict) -> dict:
-    address = os.getenv("fetch_agent_address", default_address)
-
-    # local endpoint for the running agent 
-    resolver = RulesBasedResolver(
-        rules={
-            address: "http://127.0.0.1:8001/submit"
-        }
+    address = (
+        os.getenv("fetch_agent_address") or Identity.from_seed(agent_seed(), 0).address
     )
+
+    # local endpoint for the running agent
+    resolver = RulesBasedResolver(rules={address: "http://127.0.0.1:8001/submit"})
 
     request = InvestigationRequest(
         task="investigate_visible_discoloration",
@@ -37,7 +35,7 @@ async def investigate(payload: dict) -> dict:
     response = await send_sync_message(
         destination=address,
         message=request,
-        response_type = InvestigationResponse,
+        response_type=InvestigationResponse,
         resolver=resolver,
         timeout=10,
     )

@@ -2,7 +2,7 @@
 # no customer images, coordinates, crop observations, or model parameters
 # database is created locally on first access
 
-# run this on backend 
+# run this on backend
 
 from __future__ import annotations
 from contextlib import contextmanager
@@ -15,13 +15,16 @@ from typing import Generator
 
 project_root = Path(__file__).resolve().parent.parent
 
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
 
 def database_path() -> Path:
     """Use SQLite_db_path, otherwise data/vigiloforge.db"""
     configured = Path(os.getenv("SQLITE_DB_PATH", "data/vigiloforge.db")).expanduser()
     return configured if configured.is_absolute() else project_root / configured
+
 
 @contextmanager
 def connection() -> Generator[sqlite3.Connection, None, None]:
@@ -81,6 +84,7 @@ def settings_as_dict(row: sqlite3.Row) -> dict:
         "collaborative_training_enabled": bool(row["collaborative_training_enabled"]),
         "updated_at": row["updated_at"],
     }
+
 
 def get_privacy_settings() -> dict:
     init_db()
@@ -202,3 +206,61 @@ def list_security_events(limit: int = 25) -> list[dict]:
         }
         for row in rows
     ]
+
+
+DEFAULT_PREFERENCES = {
+    "external_services_enabled": False,
+    "observation_sync_enabled": False,
+    "local_retention_enabled": True,
+}
+
+
+def get_preferences() -> dict:
+    init_db()
+    with connection() as db:
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS app_preferences (id INTEGER PRIMARY KEY CHECK (id=1), settings TEXT NOT NULL)"
+        )
+        row = db.execute("SELECT settings FROM app_preferences WHERE id=1").fetchone()
+    return {**DEFAULT_PREFERENCES, **(json.loads(row["settings"]) if row else {})}
+
+
+def set_preferences(values: dict) -> dict:
+    if not set(values).issubset(DEFAULT_PREFERENCES) or any(
+        type(v) is not bool for v in values.values()
+    ):
+        raise ValueError("Unknown or invalid privacy preference")
+    get_preferences()
+    with connection() as db:
+        row = db.execute("SELECT settings FROM app_preferences WHERE id=1").fetchone()
+        updated = {
+            **DEFAULT_PREFERENCES,
+            **(json.loads(row["settings"]) if row else {}),
+            **values,
+        }
+        db.execute(
+            "INSERT INTO app_preferences VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET settings=excluded.settings",
+            (json.dumps(updated),),
+        )
+    return updated
+
+
+def remember_creao_run(run_id: str) -> None:
+    with connection() as db:
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS creao_runs (run_id TEXT PRIMARY KEY, created_at TEXT NOT NULL)"
+        )
+        db.execute(
+            "INSERT OR IGNORE INTO creao_runs VALUES (?, ?)", (run_id, utc_now())
+        )
+
+
+def has_creao_run(run_id: str) -> bool:
+    with connection() as db:
+        db.execute(
+            "CREATE TABLE IF NOT EXISTS creao_runs (run_id TEXT PRIMARY KEY, created_at TEXT NOT NULL)"
+        )
+        return (
+            db.execute("SELECT 1 FROM creao_runs WHERE run_id=?", (run_id,)).fetchone()
+            is not None
+        )

@@ -1,11 +1,118 @@
 "use client";
 import { useState } from "react";
+import { setAccessToken, requestJSON, type PrivacySettings } from "../lib/api";
+const labels: Record<keyof PrivacySettings, string> = {
+  external_services_enabled: "Allow external agent services",
+  collaborative_training_enabled:
+    "Participate in future customer-data federated training",
+  observation_sync_enabled:
+    "Allow queued observations to be sent to this backend",
+  local_retention_enabled: "Allow saving photos on this device",
+};
 export default function PrivacyPanel() {
- const [external, setExternal] = useState(false);
- return <section className="panel"><h2>Privacy transparency</h2>
-  <p>Collaborative training is OFF by default in the federated demo. Opt-in occurs separately for each simulated greenhouse.</p>
-  <label className="checklist"><input type="checkbox" checked={external} onChange={e=>setExternal(e.target.checked)}/> Acknowledge external AI service use (visual demo only)</label>
-  <p className="muted">This checkbox is informational UI state only. It does not change your server-side privacy controls or authorize any request. Fetch.ai submissions are controlled in the agent panel and must be subject to server-side authorization before public deployment.</p>
-  <p className="muted">Do not enter farm coordinates, personal data or private images into agent requests.</p>
- </section>;
+  const [settings, setSettings] = useState<PrivacySettings | null>(null);
+  const [token, setToken] = useState("");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function connect() {
+    setBusy(true);
+    setMessage("");
+    try {
+      if (token.trim()) setAccessToken(token.trim());
+      const value = await requestJSON<PrivacySettings>("/privacy/settings");
+      setSettings(value);
+      localStorage.setItem(
+        "vigilo-retention",
+        String(value.local_retention_enabled),
+      );
+      setToken("");
+      setMessage("Connected. Preferences loaded.");
+    } catch (e) {
+      setSettings(null);
+      setMessage(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function update(key: keyof PrivacySettings, value: boolean) {
+    const before = settings;
+    if (before) setSettings({ ...before, [key]: value });
+    setBusy(true);
+    try {
+      const result = await requestJSON<PrivacySettings>("/privacy/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: value }),
+      });
+      setSettings(result);
+      localStorage.setItem(
+        "vigilo-retention",
+        String(result.local_retention_enabled),
+      );
+      setMessage("Preference saved.");
+      window.dispatchEvent(new Event("vigilo-privacy-change"));
+    } catch (e) {
+      setSettings(before);
+      setMessage(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="panel">
+      <p className="eyebrow">Control center</p>
+      <h2>Your data. Your choices.</h2>
+      <p className="muted">
+        Single-grower prototype: these settings apply to this backend
+        installation. Hosted access requires the token supplied by its owner.
+      </p>
+      <label className="field">
+        Deployment access token
+        <input
+          type="password"
+          autoComplete="off"
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+          placeholder="Leave empty for local development"
+        />
+      </label>
+      <div className="actions">
+        <button disabled={busy} onClick={() => void connect()}>
+          Connect / refresh
+        </button>
+        <button
+          className="secondary"
+          onClick={() => {
+            setAccessToken("");
+            setSettings(null);
+            setMessage("Session token cleared.");
+          }}
+        >
+          Disconnect
+        </button>
+      </div>
+      {settings && (
+        <div className="checklist">
+          {(Object.keys(labels) as (keyof PrivacySettings)[]).map((key) => (
+            <label key={key}>
+              <input
+                type="checkbox"
+                disabled={busy}
+                checked={settings[key]}
+                onChange={(e) => void update(key, e.target.checked)}
+              />
+              {labels[key]}
+            </label>
+          ))}
+        </div>
+      )}
+      <p className="muted">
+        Each external request and sync also requires explicit consent. Turning
+        retention off prevents new saves; delete existing local photos in Field
+        Mode. Synthetic training opt-ins are separate from customer-data
+        permission.
+      </p>
+      <p role="status">{message}</p>
+    </section>
+  );
 }

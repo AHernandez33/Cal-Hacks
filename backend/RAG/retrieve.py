@@ -1,4 +1,3 @@
-
 """Search the local SQLite FTS5 index built by backend.RAG.ingest.
 
 Run from the project root:
@@ -14,6 +13,7 @@ import argparse
 import json
 import re
 import sqlite3
+from urllib.parse import urlsplit
 
 from backend import databases
 
@@ -102,11 +102,15 @@ def search_documents(query: str, limit: int = 5) -> list[dict]:
             "bm25_score": float(row["bm25_score"]),
         }
         for row in rows
+        if urlsplit(row["source_url"]).hostname
+        not in {"example.org", "example.com", "example.net"}
     ]
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Search local agricultural references.")
+    parser = argparse.ArgumentParser(
+        description="Search local agricultural references."
+    )
     parser.add_argument("query", help="Search terms, e.g. 'leaf yellowing'")
     parser.add_argument("--limit", type=int, default=5)
     args = parser.parse_args()

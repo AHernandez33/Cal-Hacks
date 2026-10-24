@@ -11,3 +11,7 @@ __pycache__/
 !.env.example
 .venv*/
 venv*/
+.local/
+.uagents/
+vigilo_public_crop_investigator_data.json
+artifacts/

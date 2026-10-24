@@ -1,205 +1,222 @@
+"""VigiloForge single-grower development API."""
+
 from __future__ import annotations
+import asyncio
 import os
-from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.middleware.cors import CORSMiddleware 
-from backend import __version__
+from typing import Literal
+from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, ConfigDict, StrictBool
+from backend import __version__, databases, privacy
+from backend.access import require_access
 from backend.vision import MAX_IMAGE_BYTES, VisionAnalysisError, analyze_image
-from typing import Any, Literal 
-from pydantic import BaseModel, StrictBool
-from fastapi import Query
-from backend.RAG.retrieve import search_documents, RAGRetrievalError
+from backend.RAG.retrieve import RAGRetrievalError, search_documents
+from backend.creao_api import CreaoAPIError, CreaoConfigurationError, get_investigation
 from backend.fetch_service import request_fetch_evidence
-from backend import databases, privacy
-from backend.bridge import investigate
 from backend.federated_api import router as federated_router
+from backend.orchestration.coordinator import coordinate
+from backend.orchestration.permissions import require_sync
+from backend.orchestration.schemas import InvestigationRequest
+from backend.tigerdata import TelemetryUnavailable, history
 
 app = FastAPI(
-    title="VigiloForge Secured Crop Detective",
-    description="Smarter Farming - Private By Design",
+    title="VigiloForge Secured Crop Detector",
     version=__version__,
+    dependencies=[Depends(require_access)],
 )
-
 app.include_router(federated_router)
-
-
-# this restricts browser access to the development frontend or to origins you allow 
 origins = [
-    origin.strip()
-    for origin in os.getenv(
+    x.strip()
+    for x in os.getenv(
         "FRONTEND_ORIGIN", "http://localhost:3000,http://127.0.0.1:3000"
-
     ).split(",")
-    if origin.strip()
+    if x.strip()
 ]
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
+
 @app.get("/health")
-def health() -> dict[str, str]:
-    """Check the API itself, not future third-party integrations."""
-    return {"status": "ok", "service": "farmvault-vision", "version": __version__}
+def health():
+    return {"status": "ok", "service": "vigiloforge-vision", "version": __version__}
 
-@app.post("/vision/analyze")
-async def vision_analyze(file: UploadFile = File(...)) -> dict:
-    """Accept a JPEG, PNG, or WebP and return purely local leaf observations.
 
-    Input: multipart/form-data with an upload field named `file`.
-    Output: the five numerical features, a heuristic discoloration score,
-    warnings, and a base64 PNG heatmap overlay for the original user.
-    """
-    accepted_types = {"image/jpeg", "image/jpg", "image/png", "image/webp"}
+async def read_analysis(file: UploadFile):
     try:
-        if file.content_type not in accepted_types:
-            raise HTTPException(
-                status_code=415,
-                detail="Unsupported file type. Upload JPEG, PNG, or WebP.",
-            )
-
-        # Read just one byte beyond the limit to detect oversized inputs.
+        if file.content_type not in {
+            "image/jpeg",
+            "image/jpg",
+            "image/png",
+            "image/webp",
+        }:
+            raise HTTPException(415, "Upload JPEG, PNG, or WebP.")
         image_bytes = await file.read(MAX_IMAGE_BYTES + 1)
         if len(image_bytes) > MAX_IMAGE_BYTES:
-            raise HTTPException(status_code=413, detail="Image exceeds the 8 MiB limit.")
-
-        try:
-            return analyze_image(image_bytes)
-        except VisionAnalysisError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise HTTPException(413, "Image exceeds the 8 MiB limit.")
+        return await asyncio.to_thread(analyze_image, image_bytes)
+    except VisionAnalysisError as exc:
+        raise HTTPException(422, str(exc)) from exc
     finally:
         await file.close()
 
 
+@app.post("/vision/analyze")
+async def vision_analyze(file: UploadFile = File(...)):
+    return await read_analysis(file)
 
-# Privacy and security API endpoints
+
+@app.post("/observations/sync")
+async def sync_observation(
+    file: UploadFile = File(...), authorize_sync: bool = Query(False)
+):
+    try:
+        require_sync(authorize_sync)
+    except PermissionError as exc:
+        await file.close()
+        raise HTTPException(403, str(exc)) from exc
+    # Process and return; do not persist the private image on the server.
+    return {
+        "status": "analyzed",
+        "stored_on_server": False,
+        "analysis": await read_analysis(file),
+    }
+
 
 class PrivacySettingsUpdate(BaseModel):
-    collaborative_training_enabled: StrictBool
+    model_config = ConfigDict(extra="forbid")
+    collaborative_training_enabled: StrictBool | None = None
+    external_services_enabled: StrictBool | None = None
+    observation_sync_enabled: StrictBool | None = None
+    local_retention_enabled: StrictBool | None = None
 
 
 @app.get("/privacy/settings")
 def get_privacy_settings():
-    """Retrieve the persistent collaborative-training preference."""
     return privacy.get_settings()
 
 
 @app.put("/privacy/settings")
 def update_privacy_settings(settings: PrivacySettingsUpdate):
-    """Enable or disable collaborative training."""
-    return privacy.update_settings(
-        collaborative_training_enabled=settings.collaborative_training_enabled
-    )
+    values = settings.model_dump(exclude_none=True)
+    training = values.pop("collaborative_training_enabled", None)
+    if training is not None:
+        privacy.update_settings(collaborative_training_enabled=training)
+    if values:
+        databases.set_preferences(values)
+    return privacy.get_settings()
 
 
 @app.post("/security/simulate")
 def simulate_security_export():
-    """Demonstrate the blocking of unauthorized sensitive-data exports."""
     return privacy.simulate_unauthorized_export()
 
 
 @app.get("/security/events")
-def get_security_events(limit: int = Query(default=25, ge=1, le=100)):
-    """Retrieve sanitized security audit events."""
+def get_security_events(limit: int = Query(25, ge=1, le=100)):
     return {"events": databases.list_security_events(limit)}
 
-# Search public agricultural references
+
 @app.get("/knowledge/search")
 def knowledge_search(
     query: str = Query(..., min_length=1, max_length=500),
-    limit: int = Query(default=5, ge=1, le=10)
+    limit: int = Query(5, ge=1, le=10),
 ):
     try:
-        results = search_documents(query=query, limit=limit)
-
-        return {
-            "query": query,
-            "count": len(results),
-            "results": results
-        }
-
-    except RAGRetrievalError as error:
-        raise HTTPException(
-            status_code=400,
-            detail=str(error)
-        ) from error
+        results = search_documents(query, limit)
+        return {"query": query, "count": len(results), "results": results}
+    except RAGRetrievalError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
-# Agent investigation request
-class AgentAnalyzeRequest(BaseModel):
-    features: dict[str, float] | None = None
-    anomaly_score: float | None = None
-    crop_category: str | None = None
-    provider: Literal["local", "creao"] = "local"
-    authorize_external: bool = False
-
-
-# Agent investigation endpoint
 @app.post("/agents/analyze")
-def analyze_agent(request: AgentAnalyzeRequest):
+def analyze_agent(request: InvestigationRequest):
     try:
-        result = investigate(
-            features=request.features,
-            anomaly_score=request.anomaly_score,
-            crop_category=request.crop_category,
-            provider=request.provider,
-            authorize_external=request.authorize_external,
-        )
-        return result
-
+        return coordinate(request)
     except PermissionError as exc:
-        raise HTTPException(
-            status_code=403,
-            detail=str(exc)
-        )
-
+        raise HTTPException(403, str(exc)) from exc
+    except CreaoConfigurationError as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except CreaoAPIError as exc:
+        raise HTTPException(502, str(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail=str(exc)
-        )
-
-
-
-
-from fastapi import HTTPException
-from pydantic import BaseModel
-from typing import Literal
+        raise HTTPException(400, str(exc)) from exc
 
 
 class FetchInvestigationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     features: dict[str, float] | None = None
     anomaly_score: float | None = None
     crop_category: str | None = None
+    authorize_external: StrictBool = False
 
 
 @app.post("/agents/fetch")
 async def fetch_investigation(request: FetchInvestigationRequest):
     try:
-        # This endpoint accepts public or synthetic demo observations.
-        # Production requests must additionally enforce authenticated
-        # user authorization and backend privacy allowlist checks.
         result = await request_fetch_evidence(
             features=request.features,
             anomaly_score=request.anomaly_score,
             crop_category=request.crop_category,
+            explicit_authorization=request.authorize_external,
         )
+        return {"provider": "fetch", "status": "completed", "result": result}
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except (RuntimeError, OSError, asyncio.TimeoutError) as exc:
+        raise HTTPException(
+            502,
+            "Fetch.ai unavailable. Verify its process, interpreter, and agent address.",
+        ) from exc
 
-        return {
-            "provider": "fetch",
-            "status": "completed",
-            "result": result,
-        }
 
-    except RuntimeError as exc:
-        print(
-        f"[FETCH API ERROR] {type(exc).__name__}: {exc}",
-        flush=True,
-    )
-    raise HTTPException(
-        status_code=502,
-        detail="Fetch.ai investigation unavailable",
-    )
+@app.get("/agents/creao/{run_id}")
+def creao_result(run_id: str):
+    if not databases.has_creao_run(run_id):
+        raise HTTPException(404, "Run not found for this installation.")
+    if not privacy.get_settings()["external_services_enabled"]:
+        raise HTTPException(403, "External services are disabled.")
+    try:
+        return get_investigation(run_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except CreaoConfigurationError as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except CreaoAPIError as exc:
+        raise HTTPException(502, str(exc)) from exc
+
+
+@app.get("/telemetry/history")
+def telemetry_history(
+    source: Literal["live", "demo"] = "live", limit: int = Query(24, ge=1, le=200)
+):
+    if source == "demo":
+        from backend.telemetry import history as demo_history
+
+        return {**demo_history(), "synthetic": True}
+    try:
+        return history(limit)
+    except TelemetryUnavailable as exc:
+        raise HTTPException(503, str(exc)) from exc
+
+
+class SupportQuestion(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    topic: Literal["analysis", "privacy", "offline", "pilot"]
+
+
+@app.post("/support/answer")
+def support_answer(request: SupportQuestion):
+    answers = {
+        "analysis": "Upload one well-lit leaf or capture a photo. Results are heuristic observations, not disease diagnoses. Request local evidence before choosing any external provider.",
+        "privacy": "Privacy settings are saved on this single-grower backend. External transfers require both the saved switch and consent for that request. Raw photos are not sent to agents.",
+        "offline": "Field Mode stores photos in this browser. Queue analysis and explicitly synchronize after reconnecting. OpenCV and cloud agents require the backend; they do not run offline.",
+        "pilot": "Pilot enrollment is not configured. No contact information is collected by this prototype.",
+    }
+    return {"provider": "local FAQ", "answer": answers[request.topic]}

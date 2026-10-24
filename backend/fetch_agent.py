@@ -18,6 +18,7 @@ from typing import Literal
 
 from pydantic import Field
 from uagents import Agent, Context, Model, Protocol
+from uagents_core.registration import AgentRegistrationPolicy
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
     ChatMessage,
@@ -53,14 +54,22 @@ def _select_public_query(features: dict[str, float] | None) -> str:
     if not features:
         return "plant leaf discoloration irrigation nutrient stress"
     expected = {
-        "yellow_fraction", "brown_fraction", "mean_hue",
-        "texture_variance", "edge_density",
+        "yellow_fraction",
+        "brown_fraction",
+        "mean_hue",
+        "texture_variance",
+        "edge_density",
     }
     if set(features) != expected:
         raise ValueError("The five required image features were not supplied.")
     for field, value in features.items():
         import math
-        if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value):
+
+        if (
+            not isinstance(value, (int, float))
+            or isinstance(value, bool)
+            or not math.isfinite(value)
+        ):
             raise ValueError("Invalid numerical observation.")
         minimum, maximum = (0, 179) if field == "mean_hue" else (0, 1)
         if not minimum <= value <= maximum:
@@ -87,7 +96,9 @@ def _public_search(query: str) -> list[EvidenceSource]:
     ]
 
 
-def build_public_report(features: dict[str, float] | None = None) -> InvestigationResponse:
+def build_public_report(
+    features: dict[str, float] | None = None,
+) -> InvestigationResponse:
     """Deterministic, non-diagnostic evidence summary using the public RAG DB."""
     query = _select_public_query(features)
     sources = _public_search(query)
@@ -116,10 +127,25 @@ def build_public_report(features: dict[str, float] | None = None) -> Investigati
     )
 
 
-def create_agent() -> Agent:
+class LocalRegistrationPolicy(AgentRegistrationPolicy):
+    """Direct local messaging does not require public registry publication."""
+
+    async def register(
+        self, agent_identifier, identity, protocols, endpoints, metadata=None
+    ):
+        return None
+
+
+def agent_seed() -> str:
     seed = os.getenv("FETCH_AGENT_SEED", "vigiloforge-local-seed-2026").strip()
     if len(seed) < 16:
         seed = (seed + "vigiloforge-local-seed-2026").strip()[:32]
+
+    return seed
+
+
+def create_agent() -> Agent:
+    seed = agent_seed()
 
     mailbox = os.getenv("FETCH_MAILBOX", "false").strip().lower() == "true"
     agent = Agent(
@@ -129,6 +155,10 @@ def create_agent() -> Agent:
         endpoint=["http://127.0.0.1:8001/submit"],
         mailbox=mailbox,
         publish_agent_details=mailbox,
+        registration_policy=None if mailbox else LocalRegistrationPolicy(),
+        enable_agent_inspector=mailbox,
+        report_events=mailbox,
+        mark_inactive_on_shutdown=mailbox,
     )
 
     @agent.on_event("startup")
@@ -169,13 +199,15 @@ def create_agent() -> Agent:
             + (f"\nPublic references:\n{sources}" if sources else "")
             + f"\n{report.disclaimer}"
         )
-        await ctx.send(sender, ChatMessage(content=[TextContent(type="text", text=answer)]))
+        await ctx.send(
+            sender, ChatMessage(content=[TextContent(type="text", text=answer)])
+        )
 
     @chat.on_message(ChatAcknowledgement)
     async def handle_ack(ctx: Context, sender: str, msg: ChatAcknowledgement) -> None:
         pass  # Acknowledgement only; never create a reply loop.
 
-    agent.include(chat, publish_manifest=True)
+    agent.include(chat, publish_manifest=mailbox)
     return agent
 
 

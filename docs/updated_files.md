@@ -1,0 +1,59 @@
+# Updated and new files
+
+Base GitHub commit: `fae5c85530a3bc372bc054c2868322fc2c397e28`.
+
+No original vision algorithm, federated training implementation, database binary, or original Fetch demonstration test was replaced. Duplicate frontend scaffolds remain on disk but are excluded from the active app tooling.
+
+| File | Change |
+| --- | --- |
+| `.env.example` | New |
+| `.gitignore` | Updated |
+| `APPLY_UPDATE.md` | New |
+| `README.md` | Updated |
+| `backend/RAG/retrieve.py` | Updated |
+| `backend/access.py` | New |
+| `backend/databases.py` | Updated |
+| `backend/fetch_agent.py` | Updated |
+| `backend/fetch_client.py` | Updated |
+| `backend/fetch_service.py` | Updated |
+| `backend/main.py` | Updated |
+| `backend/orchestration/__init__.py` | New |
+| `backend/orchestration/agent_registry.py` | New |
+| `backend/orchestration/coordinator.py` | New |
+| `backend/orchestration/permissions.py` | New |
+| `backend/orchestration/reports.py` | New |
+| `backend/orchestration/schemas.py` | New |
+| `backend/privacy.py` | Updated |
+| `backend/tigerdata.py` | Updated |
+| `docs/telemetry_schema.sql` | New |
+| `docs/updated_files.md` | New |
+| `docs/validation.md` | New |
+| `frontend/.env.example` | New |
+| `frontend/app/globals.css` | Updated |
+| `frontend/app/layout.tsx` | Updated |
+| `frontend/app/manifest.ts` | Updated |
+| `frontend/app/offline/page.tsx` | Updated |
+| `frontend/app/page.tsx` | Updated |
+| `frontend/components/agent_panel.tsx` | Updated |
+| `frontend/components/brand_hero.tsx` | New |
+| `frontend/components/customer_chat.tsx` | Updated |
+| `frontend/components/offline_panel.tsx` | Updated |
+| `frontend/components/privacy_panel.tsx` | Updated |
+| `frontend/components/pwa_register.tsx` | Updated |
+| `frontend/components/telemetry_panel.tsx` | Updated |
+| `frontend/components/vision_panel.tsx` | Updated |
+| `frontend/eslint.config.mjs` | Updated |
+| `frontend/lib/api.ts` | Updated |
+| `frontend/lib/offline_storage.ts` | Updated |
+| `frontend/lib/sync_queue.ts` | New |
+| `frontend/package-lock.json` | Updated |
+| `frontend/package.json` | Updated |
+| `frontend/public/icon-192.png` | New |
+| `frontend/public/icon-512.png` | New |
+| `frontend/public/sw.js` | Updated |
+| `frontend/tsconfig.json` | Updated |
+| `render.yaml` | New |
+| `requirements.txt` | New |
+| `scripts/run_fetch.py` | New |
+| `scripts/setup.sh` | New |
+| `tests/test_api.py` | New |

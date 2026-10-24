@@ -1,0 +1,22 @@
+# Single-grower prototype. A paid persistent disk is required for SQLite state.
+services:
+  - type: web
+    name: vigiloforge-api
+    runtime: python
+    plan: starter
+    buildCommand: python -m pip install torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu && python -m pip install -r requirements.txt
+    startCommand: python -m backend.RAG.ingest && python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.14
+      - key: SQLITE_DB_PATH
+        value: /var/data/vigiloforge.db
+      - key: VIGILO_API_TOKEN
+        generateValue: true
+      - key: FRONTEND_ORIGIN
+        sync: false
+    disk:
+      name: vigiloforge-data
+      mountPath: /var/data
+      sizeGB: 1

@@ -1,4 +1,3 @@
-
 """Backend-enforced privacy policy for VigiloForge Secured Crop Detective.
 
 The collaborative-training switch defaults to OFF and is NOT permission for
@@ -49,17 +48,37 @@ LEAF_FEATURE_RANGES = {
 
 BLOCKED_NAMES = frozenset(
     {
-        "image", "image_bytes", "raw_image", "image_data", "heatmap_data_url",
-        "base64", "gps", "gps_coordinates", "latitude", "longitude", "lat",
-        "lon", "lng", "coordinates", "precise_location", "address",
-        "customer_id", "farmer_id", "farm_id", "farm_records",
-        "proprietary_records", "filename", "file", "photo", "soil_telemetry",
+        "image",
+        "image_bytes",
+        "raw_image",
+        "image_data",
+        "heatmap_data_url",
+        "base64",
+        "gps",
+        "gps_coordinates",
+        "latitude",
+        "longitude",
+        "lat",
+        "lon",
+        "lng",
+        "coordinates",
+        "precise_location",
+        "address",
+        "customer_id",
+        "farmer_id",
+        "farm_id",
+        "farm_records",
+        "proprietary_records",
+        "filename",
+        "file",
+        "photo",
+        "soil_telemetry",
     }
 )
 
 
 def get_settings() -> dict:
-    return database.get_privacy_settings()
+    return {**database.get_privacy_settings(), **database.get_preferences()}
 
 
 def update_settings(*, collaborative_training_enabled: bool) -> dict:
@@ -155,9 +174,12 @@ def _valid_public_references(value: object) -> bool:
         url = reference["url"]
 
         if not (
-            isinstance(title, str) and 0 < len(title) <= 160
-            and isinstance(excerpt, str) and 0 < len(excerpt) <= 800
-            and isinstance(url, str) and 0 < len(url) <= 500
+            isinstance(title, str)
+            and 0 < len(title) <= 160
+            and isinstance(excerpt, str)
+            and 0 < len(excerpt) <= 800
+            and isinstance(url, str)
+            and 0 < len(url) <= 500
         ):
             return False
 
@@ -196,6 +218,9 @@ def authorize_external_payload(
     if not explicit_authorization:
         _reject("external_request_not_authorized", provider=provider, payload=payload)
 
+    if not get_settings()["external_services_enabled"]:
+        _reject("external_services_disabled", provider=provider, payload=payload)
+
     if not isinstance(payload, Mapping):
         _reject("invalid_payload", provider=provider, payload=payload)
 
@@ -219,7 +244,9 @@ def authorize_external_payload(
     if "features" in payload:
         features = payload["features"]
 
-        if not isinstance(features, Mapping) or set(features) != set(LEAF_FEATURE_RANGES):
+        if not isinstance(features, Mapping) or set(features) != set(
+            LEAF_FEATURE_RANGES
+        ):
             _reject("invalid_leaf_features", provider=provider, payload=payload)
 
         if any(
@@ -234,14 +261,20 @@ def authorize_external_payload(
     if "crop_category" in payload:
         crop = payload["crop_category"]
 
-        if not isinstance(crop, str) or not re.fullmatch(r"[A-Za-z][A-Za-z -]{0,39}", crop):
+        if not isinstance(crop, str) or not re.fullmatch(
+            r"[A-Za-z][A-Za-z -]{0,39}", crop
+        ):
             _reject("invalid_crop_category", provider=provider, payload=payload)
 
-    if "public_references" in payload and not _valid_public_references(payload["public_references"]):
+    if "public_references" in payload and not _valid_public_references(
+        payload["public_references"]
+    ):
         _reject("invalid_public_references", provider=provider, payload=payload)
 
     if not ("features" in payload or "public_references" in payload):
-        _reject("missing_observations_or_references", provider=provider, payload=payload)
+        _reject(
+            "missing_observations_or_references", provider=provider, payload=payload
+        )
 
     database.record_security_event(
         event_type="external_data_request",

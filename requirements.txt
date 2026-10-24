@@ -1,0 +1,11 @@
+# Python 3.12. Install the CPU torch wheel first; see README.md.
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
+python-multipart==0.0.32
+httpx==0.28.1
+numpy==2.5.4
+opencv-python-headless==4.14.0.94
+torch==2.14.1
+uagents==0.26.1
+psycopg[binary]==3.3.6
+python-dotenv==1.2.4

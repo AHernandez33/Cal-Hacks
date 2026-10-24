@@ -1,32 +1,214 @@
 "use client";
 import { useState } from "react";
-import { fetchInvestigation, type LeafFeatures, type VisionResponse } from "../lib/api";
-
-const KEYS = ["yellow_fraction", "brown_fraction", "mean_hue", "texture_variance", "edge_density"] as const;
-type Props = { vision: VisionResponse | null };
-export default function AgentPanel({ vision }: Props) {
+import {
+  requestJSON,
+  fetchInvestigation,
+  type VisionResponse,
+} from "../lib/api";
+type Report = {
+  provider: string;
+  status: string;
+  run_id?: string;
+  summary?: string;
+  uncertainty?: string;
+  next_observations?: string[];
+  minimum_intervention?: string[];
+  possible_explanations?: string[];
+  citations?: { title: string; url: string; excerpt: string }[];
+  stages?: { id: string; name: string; execution: string; status: string }[];
+  result?: unknown;
+};
+export default function AgentPanel({
+  vision,
+}: {
+  vision: VisionResponse | null;
+}) {
   const [crop, setCrop] = useState("Tomato");
+  const [provider, setProvider] = useState("local");
+  const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [response, setResponse] = useState<Record<string, unknown> | null>(null);
-  const features = Object.fromEntries(KEYS.map(key => [key, vision?.[key]]));
-  const ready = KEYS.every(key => typeof vision?.[key] === "number" && Number.isFinite(vision[key]));
+  const [report, setReport] = useState<Report | null>(null);
+  const ready = !!vision?.features;
+  const external = provider !== "local";
   async function investigate() {
-    if(!vision || !ready) return;
-    setBusy(true); setError(""); setResponse(null);
+    if (!vision) return;
+    setBusy(true);
+    setError("");
+    setReport(null);
     try {
-      const data = await fetchInvestigation(features as LeafFeatures, typeof vision.anomaly_score === "number" ? vision.anomaly_score : 0, crop);
-      setResponse(data);
-    } catch(e) { setError(e instanceof Error ? e.message : "Investigation failed"); }
-    finally { setBusy(false); }
+      const result =
+        provider === "fetch"
+          ? await fetchInvestigation(
+              vision.features,
+              vision.anomaly_score,
+              crop,
+              consent,
+            )
+          : await requestJSON<Report>("/agents/analyze", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                features: vision.features,
+                anomaly_score: vision.anomaly_score,
+                crop_category: crop,
+                provider,
+                authorize_external: external && consent,
+              }),
+            });
+      setReport(result as Report);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
   }
-  return <section className="panel"><h2>Fetch.ai evidence investigation</h2>
-    <p className="muted">Analyze an image first. Only the five numeric observations, anomaly score, and crop category are sent through this endpoint; no raw image is sent by this panel.</p>
-    <label className="field">Crop category <input value={crop} onChange={e=>setCrop(e.target.value)} maxLength={60} /></label>
-    <button type="button" disabled={!ready || busy} onClick={investigate}>{busy ? "Investigating…" : "Request Fetch.ai evidence"}</button>
-    {!ready && <p className="muted">Waiting for five numeric leaf features from OpenCV.</p>}
-    {error && <p role="alert" className="error">{error}</p>}
-    {response && <pre className="code-result">{JSON.stringify(response,null,2)}</pre>}
-    <p className="muted">CREAO is intentionally not invoked until its API authentication and privacy policy checks are verified.</p>
-  </section>;
+  async function poll() {
+    if (!report?.run_id) return;
+    setBusy(true);
+    setError("");
+    try {
+      const result = await requestJSON<Report>(
+        `/agents/creao/${encodeURIComponent(report.run_id)}`,
+      );
+      setReport({ ...report, ...result });
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="panel">
+      <p className="eyebrow">Evidence workflow</p>
+      <h2>Investigate with context</h2>
+      <p className="muted">
+        Local mode uses rules and SQLite retrieval. External providers receive
+        only five numbers, the anomaly score, crop category, and approved public
+        passages.
+      </p>
+      <label className="field">
+        Crop category
+        <input
+          value={crop}
+          maxLength={40}
+          onChange={(e) => setCrop(e.target.value)}
+        />
+      </label>
+      <label className="field">
+        Provider
+        <select
+          aria-label="Provider"
+          value={provider}
+          onChange={(e) => {
+            setProvider(e.target.value);
+            setConsent(false);
+          }}
+        >
+          <option value="local">Local evidence workflow</option>
+          <option value="fetch">Fetch.ai agent messaging</option>
+          <option value="creao">Configured CREAO hosted agent</option>
+        </select>
+      </label>
+      {external && (
+        <label className="consent">
+          <input
+            type="checkbox"
+            checked={consent}
+            onChange={(e) => setConsent(e.target.checked)}
+          />
+          I authorize this request to the selected agent service. Saved
+          external-service permission must also be enabled.
+        </label>
+      )}
+      <button
+        disabled={!ready || busy || (external && !consent)}
+        onClick={() => void investigate()}
+      >
+        {busy ? "Working…" : "Request investigation"}
+      </button>
+      {!ready && <p className="muted">Analyze a leaf image first.</p>}
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+      {report && (
+        <div aria-live="polite">
+          <p>
+            <strong>{report.provider}</strong> · {report.status}
+          </p>
+          {report.summary && <p>{report.summary}</p>}
+          {report.stages && (
+            <ol>
+              {report.stages.map((s) => (
+                <li key={s.id}>
+                  {s.name}: {s.status}{" "}
+                  <span className="muted">({s.execution})</span>
+                </li>
+              ))}
+            </ol>
+          )}
+          {report.citations && (
+            <>
+              <h3>Public evidence</h3>
+              {report.citations.length === 0 ? (
+                <p>
+                  No vetted matching references are available. Add reviewed
+                  public passages before relying on scientific evidence.
+                </p>
+              ) : (
+                report.citations.map((c, i) => (
+                  <article key={i}>
+                    <a href={c.url} target="_blank" rel="noreferrer">
+                      {c.title}
+                    </a>
+                    <p>{c.excerpt}</p>
+                  </article>
+                ))
+              )}
+            </>
+          )}
+          {report.possible_explanations?.map((x) => (
+            <p key={x}>{x}</p>
+          ))}
+          {report.next_observations && (
+            <>
+              <h3>Next observations</h3>
+              <ul>
+                {report.next_observations.map((x) => (
+                  <li key={x}>{x}</li>
+                ))}
+              </ul>
+            </>
+          )}
+          {report.minimum_intervention && (
+            <>
+              <h3>Minimum intervention</h3>
+              <ul>
+                {report.minimum_intervention.map((x) => (
+                  <li key={x}>{x}</li>
+                ))}
+              </ul>
+            </>
+          )}
+          {report.uncertainty && <p className="muted">{report.uncertainty}</p>}
+          {report.run_id && (
+            <button
+              className="secondary"
+              disabled={busy}
+              onClick={() => void poll()}
+            >
+              Check hosted run status
+            </button>
+          )}
+          {report.result != null && (
+            <pre className="code-result">
+              {JSON.stringify(report.result, null, 2)}
+            </pre>
+          )}
+        </div>
+      )}
+    </section>
+  );
 }
