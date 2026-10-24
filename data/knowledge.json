@@ -1,0 +1,13 @@
+
+{
+  "documents": [
+    {
+      "title": "Example Agricultural Reference",
+      "source_url": "https://example.org/replace-with-real-source",
+      "public": true,
+      "passages": [
+        "This is an illustrative test passage about leaf discoloration and irrigation stress. Replace it with verified public agricultural reference material."
+      ]
+    }
+  ]
+}

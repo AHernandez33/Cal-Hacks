@@ -1,0 +1,253 @@
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f4f7f5;
+  color: #1a2b22;
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.5;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  background: #156e50;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Typography */
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+}
+
+h2 {
+  margin-top: 0;
+  font-size: 1.25rem;
+}
+
+h3 {
+  font-size: 1.03rem;
+}
+
+p {
+  margin: 10px 0;
+}
+
+/* Page layout */
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 18px;
+}
+
+.header {
+  background: #123b2c;
+  color: white;
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 22px;
+}
+
+.header h1 {
+  font-size: clamp(1.7rem, 4vw, 2.8rem);
+  margin: 10px 0;
+}
+
+.eyebrow {
+  color: #a7dfc1;
+  letter-spacing: 0.08em;
+  font-size: 0.83rem;
+  text-transform: uppercase;
+}
+
+/* Dashboard grid */
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.stack {
+  display: grid;
+  gap: 18px;
+}
+
+/* Dashboard panels */
+
+.panel {
+  background: white;
+  border: 1px solid #dce8df;
+  border-radius: 14px;
+  padding: 22px;
+  box-shadow: 0 1px 8px #143c2210;
+  min-width: 0;
+}
+
+.muted {
+  color: #52665b;
+  font-size: 0.92rem;
+}
+
+/* Buttons and actions */
+
+.actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.actions .file-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.file-label input {
+  max-width: 190px;
+}
+
+/* Privacy settings */
+
+.checklist {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.checklist label {
+  display: flex;
+  gap: 8px;
+}
+
+/* Input fields */
+
+.field {
+  display: grid;
+  max-width: 300px;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.field input {
+  border: 1px solid #b8c8bd;
+  padding: 8px;
+  border-radius: 6px;
+}
+
+/* Camera and heatmap */
+
+.camera,
+.heatmap {
+  max-width: 100%;
+  border-radius: 9px;
+  margin-top: 12px;
+}
+
+.camera {
+  width: 100%;
+  background: #111;
+  max-height: 390px;
+}
+
+.heatmap {
+  max-height: 360px;
+}
+
+/* Analysis results */
+
+.code-result {
+  background: #f0f4f1;
+  max-height: 320px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+}
+
+.error {
+  color: #a2132a;
+  font-weight: 600;
+}
+
+/* Training metrics */
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.86rem;
+  margin: 14px 0;
+}
+
+th,
+td {
+  border-bottom: 1px solid #dce8df;
+  text-align: left;
+  padding: 8px;
+}
+
+.history {
+  max-height: 220px;
+  overflow: auto;
+}
+
+/* Placeholder components */
+
+.placeholder {
+  border: 1px dashed #b1c8bb;
+  padding: 18px;
+  border-radius: 8px;
+  color: #587367;
+}
+
+/* Footer */
+
+footer {
+  color: #52665b;
+  padding: 24px 0;
+  font-size: 0.85rem;
+}
+
+/* Responsive layout */
+
+@media (max-width: 850px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .header {
+    padding: 23px;
+  }
+
+  .panel {
+    padding: 17px;
+  }
+}

@@ -1,0 +1,7 @@
+// Saved photos remain on this device until explicitly deleted or sent.
+export type Observation={id:string;createdAt:string;name:string;photo:Blob};
+const DB_NAME='vigilo-local-observations';const STORE='photos';
+function openDB():Promise<IDBDatabase>{return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE,{keyPath:'id'});};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
+export async function saveObservation(photo:Blob,name:string){const db=await openDB();const entry:Observation={id:crypto.randomUUID(),createdAt:new Date().toISOString(),name,photo};await new Promise<void>((res,rej)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(entry);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});db.close();return entry.id;}
+export async function listObservations():Promise<Observation[]>{const db=await openDB();const values=await new Promise<Observation[]>((res,rej)=>{const req=db.transaction(STORE).objectStore(STORE).getAll();req.onsuccess=()=>res(req.result);req.onerror=()=>rej(req.error);});db.close();return values.sort((a,b)=>b.createdAt.localeCompare(a.createdAt));}
+export async function deleteObservation(id:string){const db=await openDB();await new Promise<void>((res,rej)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).delete(id);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});db.close();}
