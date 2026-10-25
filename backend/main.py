@@ -28,6 +28,8 @@ from backend.accounts import router as account_router
 
 app.include_router(federated_router)
 app.include_router(account_router)
+from backend.report_email import router as report_email_router
+app.include_router(report_email_router)
 origins = [
     x.strip()
     for x in os.getenv(
