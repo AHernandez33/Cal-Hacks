@@ -1,5 +1,6 @@
 "use client";
 import Image from "next/image";
+import ScanEmailCTA from "./scan_email_cta";
 import { useEffect, useRef, useState } from "react";
 import { analyzeImage, type VisionResponse } from "../lib/api";
 
@@ -225,6 +226,7 @@ export default function VisionPanel({ onAnalyzed }: Props) {
               {warning}
             </p>
           ))}
+          <ScanEmailCTA result={result} />
           <details>
             <summary>All numerical observations</summary>
             <pre className="code-result">
