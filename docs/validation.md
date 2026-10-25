@@ -44,3 +44,16 @@ The existing `tests/test_fetch_message.py` is an interactive continuous demonstr
 - Authorized workspaces share the installation's telemetry feed. Per-farm database isolation is not implemented.
 
 See `integrations_setup.md` for the exact outside actions needed to complete provider and corpus setup.
+
+
+## Nine-agent delivery follow-up — October 25, 2026 (Pacific time)
+
+- 47 terminating backend tests passed: API 17, federated 5, workspaces 12, integrations 5, CREAO 8. CREAO subtests cover all nine app/key pairs, leaf structured inputs, outbound privacy rejection, output variants, immediate completion, role ownership, account deletion, and coordinator credential consistency.
+- TypeScript, ESLint, and Next.js production build passed.
+- Headless system Chromium exercised a real image upload/API response and input reset, one immediately completed hosted response, nine distinct CREAO starts, seven completed outputs alongside independent POST and polling failures, and manual status checking without a new start. CREAO transport was mocked; no live CREAO keys were available.
+- The same browser flow then displayed a genuine local Fetch request/response, with no page JavaScript errors.
+- Full-stack launcher passed readiness checks, frontend page retrieval, genuine API-to-Fetch messaging, and SIGTERM cleanup of all three service ports on Linux.
+- Backend-only launcher passed custom API-port startup, genuine API-to-Fetch messaging, and required-child failure detection. Stopping the receiver failed the supervisor and cleaned up the API; no frontend was started in backend-only mode.
+- The Render blueprint now uses the backend-only supervisor. Its configuration was exercised locally; no Render/Vercel service was provisioned or deployed.
+- Windows script changes were reviewed on Linux. Native Windows process checks and repair execution remain unverified. The launcher refuses installation while matching project Node processes or stack listeners remain and supports frontend-only repair without reinstalling Python dependencies.
+- Live CREAO completion, provider-side revocation of previously exposed keys, optional live Tiger Data, public deployment, original logo artwork, and physical-device testing remain outside these verified outcomes.

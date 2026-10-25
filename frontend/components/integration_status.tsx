@@ -3,7 +3,7 @@ import { useState } from "react";
 import { requestJSON } from "../lib/api";
 type Status = {
   fetch: { ready: boolean; message: string; messaging_verified: boolean };
-  creao: { configured: boolean; message: string };
+  creao: { configured: boolean; message: string; agents: {role: string; name: string; configured: boolean}[] };
   tiger_data: { configured: boolean; message: string };
 };
 export default function IntegrationStatus() {
@@ -69,6 +69,9 @@ export default function IntegrationStatus() {
                 : "Not configured"}
             </p>
             <p className="muted">{status.creao.message}</p>
+            <ul>{status.creao.agents.map(agent => <li key={agent.role}>
+              {agent.name}: {agent.configured ? "configured" : "missing credentials"}
+            </li>)}</ul>
           </article>
         </div>
       )}

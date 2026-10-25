@@ -35,20 +35,17 @@ The current telemetry feed belongs to the installation and is shared with author
 
 No Fetch API key is required for this bundled direct local demo. It uses the actual uAgents messaging SDK and local scientific retrieval, not an LLM. Public Agentverse/mailbox registration, discovery, billing, and hosted agents are separate capabilities and are not validated here.
 
-For a remote receiver, configure an HTTPS `FETCH_AGENT_ENDPOINT` and the receiver's actual `fetch_agent_address`, plus supported connectivity from the API. Never use a laptop's loopback address from a hosted Render service. The supplied Render blueprint starts only the API; add a supervised receiver or use a separately hosted endpoint. Do not assume a web-service build command starts a durable background receiver.
+For a remote receiver, configure an HTTPS `FETCH_AGENT_ENDPOINT` and the receiver's actual `fetch_agent_address`, plus supported connectivity from the API. Never use a laptop's loopback address from a hosted Render service. The supplied Render blueprint starts the API and a supervised local receiver using `scripts/run_stack.py --backend-only`. Both share the same server-side environment and SQLite index. Public Agentverse hosting remains separate.
 
-## CREAO (deferred LLM integration)
+## Nine CREAO specialists
 
-This update intentionally adds no new LLM integration. The existing CREAO adapter remains optional and unverified with live credentials.
+See [final_agents.md](final_agents.md) for role names, secure configuration, check commands, and delivery instructions. Each role uses `CREAO_<ROLE>_APP_ID` and `CREAO_<ROLE>_API_KEY`. Supply the full key without a Bearer prefix. Legacy lowercase variables are a fallback only when both coordinator-specific variables are absent. Version v1 is supported.
 
-1. Create/configure a hosted app in your CREAO account. The current adapter expects one text input named `prompt`.
-2. Verify the provider's current API documentation and your app's request/response contract against `backend/creao_api.py`: it currently assumes `https://agent.creao.ai/api/v1`, `POST /runs`, an `appId`, and a returned run `id`. These assumptions have not been established by a successful hosted run.
-3. Securely configure `creao_api_key` and `creao_app_id` on the backend, and allow outbound HTTPS to the verified provider hostname.
-4. Use a dedicated test app and synthetic numerical observations first. Enable the workspace external-service preference and give per-request consent; never send private images or farm identifiers to this adapter.
-5. Start a run and verify status polling and its final cited result. A green configuration indicator is insufficient.
-6. Only claim multi-agent orchestration after the hosted app itself executes the coordinator and specialist agents successfully. The local four-stage report remains rule-based retrieval, not evidence that four hosted agents ran.
+The adapter starts `POST https://agent.creao.ai/api/v1/apps/APP_ID/runs` with `{"inputs": {...}}` and polls `GET /api/v1/runs/RUN_ID` using that role's matching key. Leaf analyst uses measurements/observations/crop/references/question. Other roles use prompt. Separate hosted runs are independent; they are not a chained coordinator execution.
 
-If your CREAO account uses a different API contract, that adapter needs a separate implementation/verification step. Do not invent a working endpoint or successful response.
+Enable saved external-service permission, analyze an image, select a specialist or all nine, and explicitly authorize the request. The dashboard displays individual failures and polls for up to two minutes. A manual check only retrieves existing runs. Complete output is read from result, outputs, or output. An immediate completed response is also displayed. Completed-without-output is reported explicitly.
+
+This implementation was verified with mocked CREAO responses, not live keys. Verify each app's completed run with the credentials stored on your Windows machine or hosting provider. Acceptance alone is insufficient. Do not send private farm data or invent absent sensor readings, history, or visitor intent. Revoke the previously exposed key in the CREAO console; cloud code cannot verify account-side revocation.
 
 ## Scientific SQLite retrieval (no LLM)
 

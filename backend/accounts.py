@@ -122,6 +122,7 @@ def delete_workspace():
         for table in (
             "workspace_preferences",
             "workspace_creao_runs",
+            "creao_run_roles",
             "workspace_events",
         ):
             db.execute(f"DELETE FROM {table} WHERE owner_id=?", (owner,))

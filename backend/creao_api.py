@@ -1,11 +1,6 @@
-"""CREAO agent for VigiloForge SCD - Secured Crop Detective
+"""App-scoped CREAO v1 adapter with privacy-validated specialist inputs.
 
-uses the CREAO agent API v1
-
-agent must already exist with one text input called "prompt" 
-external requests require an explicit authorization flag and validation throuhg
-backend, privacy
-No images, GPS values or coordinates, or raw farmer records are sent
+Raw photos, coordinates, and private farm records are never sent.
 """
 
 from __future__ import annotations
@@ -13,6 +8,7 @@ import json
 import re
 from collections.abc import Mapping
 from typing import Any
+from urllib.parse import quote
 import httpx
 from backend.privacy import authorize_external_payload
 
@@ -104,7 +100,6 @@ def start_investigation(
         payload=payload,
         explicit_authorization=explicit_authorization,
     )
-    from urllib.parse import quote
     _, app_id = credentials(role)
     prompt = prompt_payload(safe) + (
         "\nYour specialist role is " + role.replace("_", " ") + ". "
@@ -123,29 +118,32 @@ def start_investigation(
     run_id = result.get("id")
     if not isinstance(run_id, str) or not run_id_pattern.fullmatch(run_id):
         raise CreaoAPIError("CREAO response lacked a valid run id")
-    return {"run_id": run_id, "status": result.get("status", "pending"), "provider": "creao", "role": role}
+    return run_response(result, run_id, role, default_status="pending")
 
 def get_investigation(
         run_id: str, *, role: str = "coordinator", client: httpx.Client | None = None
 ) -> dict[str, Any]:
     """Poll a run previously initiated by this backend.
 
-    The future FastAPI route must authenticate its caller and authorize access to the run id; this 
-    module along does not maintain run ownership
+    The caller must authenticate its user and authorize access to the run id; this
+    module does not maintain run ownership.
     """
     if not isinstance(run_id, str) or not run_id_pattern.fullmatch(run_id):
         raise ValueError("Invalid CREAO run id.")
     result = api_request("GET", f"/runs/{run_id}", role=role, client=client)
-    status = str(result.get("status", "unknown")).lower()
-    status = {"complete": "completed", "succeeded": "completed", "queued": "pending"}.get(status, status)
+    return run_response(result, run_id, role)
+
+
+def run_response(result: dict[str, Any], run_id: str, role: str, *, default_status="unknown") -> dict[str, Any]:
+    status = str(result.get("status", default_status)).strip().lower()
+    status = {"complete": "completed", "succeeded": "completed", "queued": "pending", "canceled": "cancelled"}.get(status, status)
     output = next((result[k] for k in ("result", "outputs", "output") if result.get(k) not in (None, "", {}, [])), None)
     return {
         "provider": "creao",
-        "run_id": result.get("id", run_id),
+        "run_id": run_id,
         "status": status if status in run_status else "unknown",
         "role": role,
         "result": output if status == "completed" else None,
         "notice": "Completed without usable output." if status == "completed" and output is None else None,
-        "error": "run_failed" if status == "failed" else None,
+        "error": "Hosted agent run failed. Check this app's run history in CREAO." if status == "failed" else None,
     }
-

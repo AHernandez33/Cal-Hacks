@@ -32,6 +32,9 @@ def coordinate(request: InvestigationRequest) -> dict:
             status=run["status"],
             run_id=run["run_id"],
             role=request.creao_role,
+            result=run.get("result"),
+            notice=run.get("notice"),
+            error=run.get("error"),
             external_request_sent=True,
         )
         result["stages"].append(

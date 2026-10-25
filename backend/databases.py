@@ -47,6 +47,7 @@ def connection() -> Generator[sqlite3.Connection, None, None]:
 def init_db() -> None:
     """Create the local preference and audit tables on first access."""
     with connection() as database:
+        database.execute("CREATE TABLE IF NOT EXISTS creao_run_roles (owner_id TEXT, run_id TEXT, role TEXT NOT NULL, PRIMARY KEY(owner_id, run_id))")
         database.execute(
             "CREATE TABLE IF NOT EXISTS workspace_preferences (owner_id TEXT PRIMARY KEY, settings TEXT NOT NULL, updated_at TEXT NOT NULL)"
         )

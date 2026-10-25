@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   requestJSON,
   fetchInvestigation,
@@ -35,13 +35,31 @@ export default function AgentPanel({
   const [role, setRole] = useState("coordinator");
   const [runs, setRuns] = useState<HostedRun[]>([]);
   const [pollUntil, setPollUntil] = useState(0);
+  const generation = useRef(0);
+  useEffect(() => {
+    const clear = () => {
+      generation.current += 1;
+      setRuns([]);
+      setReport(null);
+      setError("");
+      setConsent(false);
+      setPollUntil(0);
+      setBusy(false);
+    };
+    window.addEventListener("vigilo-account-change", clear);
+    return () => {
+      generation.current += 1;
+      window.removeEventListener("vigilo-account-change", clear);
+    };
+  }, []);
   async function checkRuns() {
+    const current = generation.current;
     await Promise.all(runs.filter(r => r.run_id && !["completed", "failed", "cancelled"].includes(r.status)).map(async r => {
       try {
         const update = await requestJSON<HostedRun>(`/agents/creao/${encodeURIComponent(r.run_id!)}`);
-        setRuns(previous => previous.map(item => item.run_id === r.run_id ? {...item, ...update, error: update.error} : item));
+        if (generation.current === current) setRuns(previous => previous.map(item => item.run_id === r.run_id ? {...item, ...update} : item));
       } catch (e) {
-        setRuns(previous => previous.map(item => item.run_id === r.run_id ? {...item, error: String(e)} : item));
+        if (generation.current === current) setRuns(previous => previous.map(item => item.run_id === r.run_id ? {...item, error: String(e)} : item));
       }
     }));
   }
@@ -51,7 +69,7 @@ export default function AgentPanel({
     const timer = setTimeout(async () => {
       const pending = runs.filter(r => r.run_id && !["completed", "failed", "cancelled"].includes(r.status));
       const updates = await Promise.all(pending.map(async r => {
-        try { return {...r, ...await requestJSON<HostedRun>(`/agents/creao/${encodeURIComponent(r.run_id!)}`), error: undefined}; }
+        try { return {...r, ...await requestJSON<HostedRun>(`/agents/creao/${encodeURIComponent(r.run_id!)}`)}; }
         catch(e) { return {...r, error: String(e)}; }
       }));
       if (!cancelled) setRuns(previous => previous.map(r => updates.find(u => u.run_id === r.run_id) || r));
@@ -62,7 +80,10 @@ export default function AgentPanel({
   const external = provider !== "local";
   async function investigate() {
     if (!vision) return;
+    const current = ++generation.current;
     setBusy(true);
+    setPollUntil(0);
+    setRuns([]);
     setError("");
     setReport(null);
     try {
@@ -77,9 +98,9 @@ export default function AgentPanel({
               body: JSON.stringify({features: vision.features, anomaly_score: vision.anomaly_score, crop_category: crop, provider: "creao", creao_role: selectedRole, authorize_external: consent}),
             });
           } catch(e) { run = {role: selectedRole, status: "failed", error: String(e)}; }
-          setRuns(previous => previous.map(item => item.role === selectedRole ? {...run, role: selectedRole} : item));
+          if (generation.current === current) setRuns(previous => previous.map(item => item.role === selectedRole ? {...run, role: selectedRole} : item));
         }));
-        setPollUntil(Date.now() + 120000);
+        if (generation.current === current) setPollUntil(Date.now() + 120000);
         return;
       }
       const result =
@@ -101,11 +122,11 @@ export default function AgentPanel({
                 authorize_external: external && consent,
               }),
             });
-      setReport(result as Report);
+      if (generation.current === current) setReport(result as Report);
     } catch (e) {
-      setError(String(e));
+      if (generation.current === current) setError(String(e));
     } finally {
-      setBusy(false);
+      if (generation.current === current) setBusy(false);
     }
   }
   async function poll() {
@@ -146,6 +167,7 @@ export default function AgentPanel({
       <label className="field">
         Provider
         <select
+          disabled={busy}
           aria-label="Provider"
           value={provider}
           onChange={(e) => {
@@ -159,7 +181,7 @@ export default function AgentPanel({
         </select>
       </label>
       {provider === "creao" && <label className="field">CREAO agent
-        <select value={role} onChange={e => setRole(e.target.value)}>
+        <select aria-label="CREAO agent" disabled={busy} value={role} onChange={e => setRole(e.target.value)}>
           {roles.map(r => <option key={r} value={r}>{r.replaceAll("_", " ")}</option>)}
           <option value="all">Run all 9 CREAO agents</option>
         </select>

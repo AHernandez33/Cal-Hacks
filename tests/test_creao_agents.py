@@ -23,6 +23,8 @@ class HostedAgents(unittest.TestCase):
         self.env = patch.dict(os.environ, settings)
         self.env.start()
         databases.set_preferences({'external_services_enabled':True})
+        from backend.RAG.ingest import ingest_documents
+        ingest_documents()
     def tearDown(self):
         self.env.stop()
         self.temp.cleanup()
@@ -70,3 +72,44 @@ class HostedAgents(unittest.TestCase):
             self.assertEqual(databases.creao_run_role('run-123456'),'coordinator')
         finally:
             workspace_id.reset(marker)
+
+    def test_immediate_completion_keeps_output(self):
+        from backend.orchestration.coordinator import coordinate
+        from backend.orchestration.schemas import InvestigationRequest
+        with patch('backend.creao_api.api_request', return_value={'id':'run-immediate', 'status':'Complete','outputs':{'text':'immediate result'}}):
+            result = coordinate(InvestigationRequest(features=FEATURES, provider='creao', creao_role='leaf_analyst', authorize_external=True))
+        self.assertEqual(result['status'], 'completed')
+        self.assertEqual(result['result'], {'text':'immediate result'})
+        self.assertTrue(databases.has_creao_run('run-immediate'))
+        self.assertEqual(databases.creao_run_role('run-immediate'), 'leaf_analyst')
+
+    def test_partial_coordinator_credentials_do_not_mix_with_legacy(self):
+        from backend.creao_api import credentials, CreaoConfigurationError
+        with patch.dict(os.environ, {'CREAO_COORDINATOR_APP_ID':'', 'CREAO_COORDINATOR_API_KEY':'new-test-key', 'creao_app_id':'legacy-app', 'creao_api_key':'legacy-test-key'}):
+            with self.assertRaises(CreaoConfigurationError):
+                credentials()
+
+    def test_status_route_uses_owned_role_and_hides_other_workspaces(self):
+        from fastapi.testclient import TestClient
+        from backend.main import app
+        with patch.dict(os.environ, {'VIGILO_API_TOKEN':''}), TestClient(app) as client:
+            owner = client.post('/auth/workspaces').json()
+            other = client.post('/auth/workspaces').json()
+            headers = {'Authorization': 'Bearer ' + owner['token']}
+            client.put('/privacy/settings', json={'external_services_enabled':True}, headers=headers)
+            def remote(method, path, **kwargs):
+                self.assertEqual(kwargs['role'], 'leaf_analyst')
+                return {'id':'run-owned-123', 'status':'pending' if method=='POST' else 'completed', 'output':'owned result'}
+            with patch('backend.creao_api.api_request', side_effect=remote) as transport:
+                start = client.post('/agents/analyze', json={'features':FEATURES,'provider':'creao','creao_role':'leaf_analyst','authorize_external':True}, headers=headers)
+                self.assertEqual(start.status_code,200,start.text)
+                done = client.get('/agents/creao/run-owned-123',headers=headers)
+                self.assertEqual(done.json()['result'],'owned result')
+                count = transport.call_count
+                denied = client.get('/agents/creao/run-owned-123',headers={'Authorization':'Bearer '+other['token']})
+                self.assertEqual(denied.status_code,404)
+                self.assertEqual(transport.call_count,count)
+            deleted = client.delete('/auth/workspace',headers=headers)
+            self.assertEqual(deleted.status_code,200)
+            with databases.connection() as db:
+                self.assertEqual(db.execute('SELECT count(*) FROM creao_run_roles WHERE owner_id=?',(owner['workspace_id'],)).fetchone()[0],0)

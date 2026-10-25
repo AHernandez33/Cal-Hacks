@@ -2,7 +2,7 @@
 
 **Smarter Farming. Private by Design.** A Cal Hacks 13.0 research prototype.
 
-FastAPI/OpenCV, Next.js, SQLite FTS5 public-reference retrieval, genuine local Fetch.ai messaging, and a synthetic PyTorch federated learning demonstration. Local investigation stages use rules/retrieval. No new LLM integration is included in this update.
+FastAPI/OpenCV, Next.js, SQLite FTS5 public-reference retrieval, genuine local Fetch.ai messaging, and a synthetic PyTorch federated learning demonstration. Local investigation stages use rules/retrieval. Nine optional CREAO specialists run independently through their hosted apps.
 
 ## Start on Windows (VS Code / PowerShell)
 
@@ -104,7 +104,7 @@ Tiger Data uses `TIGER_DATABASE_URL` with full TLS verification and a read-only 
 
 Fetch uses the API's interpreter by default; both receiver and client load the same `.env`. The client auto-derives the local receiver address unless overridden. `FETCH_AGENT_ENDPOINT` can specify a remote HTTPS receiver. Configuration/port reachability does not prove a successful agent-message response. Public Agentverse/mailbox integration is not verified.
 
-CREAO's existing adapter is retained, with no additional LLM work. Verify its assumed API contract and configure `creao_api_key` and `creao_app_id` securely before a real test. Four local report stages do not establish four hosted agents ran.
+CREAO supports nine independent specialists with role-specific app IDs/keys, individual results/errors, and automatic polling. See [the agent delivery guide](docs/final_agents.md). Hosted calls were tested with mocks; verify live completion using your own keys. Four local report stages do not establish hosted agent execution.
 
 ## Original artwork
 
@@ -117,6 +117,7 @@ The animated banner uses `frontend/public/vigiloforge-logo.png` at the supplied 
 .venv/bin/python -m unittest discover -s tests -p test_federated.py
 .venv/bin/python -m unittest discover -s tests -p test_workspaces.py
 .venv/bin/python -m unittest discover -s tests -p test_integrations.py
+.venv/bin/python -m unittest discover -s tests -p test_creao_agents.py
 cd frontend
 npx tsc --noEmit
 npm run lint
@@ -127,6 +128,8 @@ Do not use unrestricted test discovery: `test_fetch_message.py` is a continuous 
 
 ## Deployment
 
-Review `render.yaml` before provisioning; its persistent disk uses a paid service. Set real HTTPS `FRONTEND_ORIGIN`, keep SQLite on persistent storage, and configure a private administrator token. Do not publish that token as a frontend environment variable. The blueprint starts only the API; it does not supervise a Fetch receiver. Configure a durable receiver/transport separately.
+Review `render.yaml` before provisioning; its persistent disk uses a paid service. Set real HTTPS `FRONTEND_ORIGIN`, keep SQLite on persistent storage, and configure a private administrator token. Do not publish that token as a frontend environment variable. The blueprint supervises FastAPI and the local Fetch receiver using `scripts/run_stack.py --backend-only`. Configure backend credentials and a private Fetch seed securely before deploying.
 
 On Vercel use root `frontend`, install `npm ci`, build `npm run build`, and set `NEXT_PUBLIC_API_URL` to the real HTTPS API origin before building. Rebuild after changing it. Verify authenticated requests, CORS, account isolation, privacy persistence and provider connections after deployment. No public Render/Vercel deployment or paid checkout has been performed here.
+
+For Windows Next.js native-module EPERM failures, stop this project’s servers first and use `scripts/start_windows.ps1 -RepairFrontend` to repair only frontend dependencies. See [the delivery and deployment guide](docs/final_agents.md).

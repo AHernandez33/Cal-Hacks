@@ -12,7 +12,10 @@ def credentials(role="coordinator"):
     prefix = "CREAO_" + role.upper()
     key = os.getenv(prefix + "_API_KEY", "").strip()
     app = os.getenv(prefix + "_APP_ID", "").strip()
-    if role == "coordinator":
+    if os.getenv("CREAO_API_VERSION", "v1").strip() != "v1":
+        from backend.creao_api import CreaoConfigurationError
+        raise CreaoConfigurationError("CREAO_API_VERSION must be v1 for this adapter.")
+    if role == "coordinator" and not key and not app:
         key = key or os.getenv("creao_api_key", "").strip()
         app = app or os.getenv("creao_app_id", "").strip()
     if not key or not app:
