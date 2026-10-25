@@ -41,3 +41,8 @@ Rebuilt from main because handoff commit bf0da1f and its artifacts were unavaila
 A `GET / 200` line means Next.js served the page. Pressing Ctrl+C stops that foreground server; a later browser request then receives connection refused. The Windows startup script opens the browser after service readiness automatically. Keep that terminal open while using the app. From the root run `powershell -ExecutionPolicy Bypass -File .\scripts\start_windows.ps1`; no dependency reinstall is needed for this change. Direct Python startup can also open the browser with `scripts/run_stack.py --open-browser`.
 
 The `scroll-behavior: smooth` development warning is resolved by the matching data attribute on the HTML element; it was unrelated to the refused connection.
+
+
+## Combined launch interface
+
+The delivery branch also includes the recovered original logo and entrance animation, Six greenhouse scenarios navigation/page, and Free/Gold/Platinum subscription proposal cards. Use `feature/nine-agent-delivery` to receive both this interface and the camera/agent fixes. The six scenarios are fabricated educational examples, separate from the three-client federated simulation. Regular scans have no email gate, and subscriptions are not active paid products.

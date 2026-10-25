@@ -62,7 +62,8 @@ On Windows, replace `.venv/bin/python` with `.\.venv\Scripts\python.exe`.
 | `/research` | Search the actual SQLite FTS5 index, inspect passage counts and source links; no LLM answer |
 | `/field` | Mobile photo storage, queue, explicit synchronization, installation guidance |
 | `/login` | Create/sign in to a pseudonymous workspace with a private key; no name or email |
-| `/plans` | Free prototype plan and a clearly unavailable future pilot; no live billing |
+| `/plans` | Free, Gold, and Platinum subscription proposals; no active billing or email scan gate |
+| `/greenhouses` | Six interactive, explicitly synthetic greenhouse scenarios and a local comparison calculator |
 
 Image features and the anomaly index are heuristics, not disease diagnoses or probabilities. The overlay marks yellow/brown classification regions; it is not a temperature map. Camera direction/device controls support rear phone cameras and selectable webcams, subject to real browser/device permissions.
 
@@ -108,7 +109,7 @@ CREAO supports nine independent specialists with role-specific app IDs/keys, ind
 
 ## Original artwork
 
-The animated banner uses `frontend/public/vigiloforge-logo.png` at the supplied 3:1 aspect ratio, with a light sweep, glow and reduced-motion support. Original typography is preserved by using the image. The chat preview was not available as a downloadable asset; the PNG still needs to be supplied. No replacement logo was invented. UI fonts are self-hosted Inter and Orbitron.
+The animated banner uses `frontend/public/vigiloforge-logo.png` at the supplied 3:1 aspect ratio, with a light sweep, glow and reduced-motion support. Original typography is preserved by using the image. The original logo PNG was recovered from the launch-experience branch, along with its entrance animation. UI fonts are self-hosted Inter and Orbitron.
 
 ## Validation
 

@@ -5,6 +5,7 @@ import "@fontsource/orbitron/400.css";
 import "@fontsource/orbitron/600.css";
 import "./globals.css";
 import SiteNav from "../components/site_nav";
+import LaunchIntro from "../components/launch_intro";
 export const metadata: Metadata = {
   title: "VigiloForge | Secured Crop Detector",
   description: "Smarter Farming. Private by Design.",
@@ -16,6 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth">
       <body>
+        <LaunchIntro />
         <div className="container">
           <SiteNav />
         </div>

@@ -73,3 +73,10 @@ See `integrations_setup.md` for the exact outside actions needed to complete pro
 ## Local browser startup follow-up
 
 The supplied Windows log showed successful HTTP 200 frontend responses followed by Ctrl+C and a refused TCP connection. The server had been stopped. Added `--open-browser` after service readiness and enabled it in the Windows wrapper; the server terminal explicitly explains that it must stay open. A local end-to-end launcher check verified HTTP 200 when invoking the browser opener, a still-running stack afterward, and closure of all three ports after SIGINT. TypeScript, ESLint, and production build passed. Added the HTML smooth-scroll data attribute required by Next.js to remove the unrelated development warning. Native Windows browser invocation remains to be exercised on the user's machine.
+
+
+## Launch-experience UI restored into the delivery branch
+
+Recovered the original logo PNG, branded split-door entrance animation and motion styles, and interactive six-greenhouse page from `feature/launch-experience-2026` at 4480ab1. Combined them with the delivery branch's existing camera, nine-agent, startup, and Render fixes. Restored Free/Gold/Platinum plan cards as proposed subscriptions while retaining regular scanning without the abandoned email gate. No live billing or paid entitlement was added.
+
+TypeScript, ESLint, and production build passed, including the new `/greenhouses` route. Chromium verified the entrance animation and loaded logo, all six scenario selections and the comparison calculator, all three subscription cards, the retained nine-agent selector, no horizontal overflow at 390px on dashboard/greenhouses/plans, reduced-motion behavior, and no page JavaScript errors. The production API authorization and genuine Fetch request/response checks also passed. Existing camera and agent source were preserved.
