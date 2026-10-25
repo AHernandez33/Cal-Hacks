@@ -922,3 +922,18 @@ blockquote {
     padding: 10px;
   }
 }
+
+
+/* Optional, reduced-motion-aware branded entrance. Uses the existing artwork. */
+.launch-intro{position:fixed;inset:0;z-index:1000;pointer-events:none;display:grid;place-items:center;animation:intro-hide 2.7s both;background:transparent}
+.launch-door{position:absolute;top:0;bottom:0;width:50%;background:#000;border:1px solid #00ddba80;box-shadow:0 0 50px #00ed6440}
+.launch-door-left{left:0;transform-origin:left;animation:door-left 2.7s ease-in-out both}
+.launch-door-right{right:0;transform-origin:right;animation:door-right 2.7s ease-in-out both}
+.launch-emblem{position:relative;z-index:1;width:min(88vw,720px);animation:emblem-fade 2.7s both;filter:drop-shadow(0 0 22px #00ed6455)}
+.launch-emblem img{width:100%;height:auto;object-fit:contain}
+.launch-glimmer{position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,#d0fff05c 50%,transparent 68%);background-size:300% 100%;mix-blend-mode:screen;animation:logo-sweep 1.8s ease-out}
+@keyframes door-left{0%,40%{transform:translateX(0)}100%{transform:translateX(-101%)}}
+@keyframes door-right{0%,40%{transform:translateX(0)}100%{transform:translateX(101%)}}
+@keyframes emblem-fade{0%{opacity:0;transform:scale(.93)}25%,55%{opacity:1;transform:scale(1)}85%,100%{opacity:0}}
+@keyframes intro-hide{0%,90%{visibility:visible}100%{visibility:hidden}}
+@media(prefers-reduced-motion:reduce){.launch-intro{display:none}}
