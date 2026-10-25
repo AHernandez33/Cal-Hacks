@@ -1,4 +1,4 @@
-"""VigiloForge single-grower development API."""
+"""VigiloForge API with pseudonymous workspace preferences and local demonstrations."""
 
 from __future__ import annotations
 import asyncio
@@ -24,7 +24,10 @@ app = FastAPI(
     version=__version__,
     dependencies=[Depends(require_access)],
 )
+from backend.accounts import router as account_router
+
 app.include_router(federated_router)
+app.include_router(account_router)
 origins = [
     x.strip()
     for x in os.getenv(
@@ -36,7 +39,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=False,
-    allow_methods=["GET", "POST", "PUT"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["Content-Type", "Authorization"],
 )
 
@@ -169,10 +172,17 @@ async def fetch_investigation(request: FetchInvestigationRequest):
         raise HTTPException(403, str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
-    except (RuntimeError, OSError, asyncio.TimeoutError) as exc:
+    except RuntimeError as exc:
+        raise HTTPException(502, str(exc)) from exc
+    except OSError as exc:
         raise HTTPException(
             502,
-            "Fetch.ai unavailable. Verify its process, interpreter, and agent address.",
+            "Fetch interpreter could not start. Clear FETCH_PYTHON or point it to the installed virtual environment.",
+        ) from exc
+    except asyncio.TimeoutError as exc:
+        raise HTTPException(
+            504,
+            "Fetch receiver timed out. Wait for startup and verify the configured agent address.",
         ) from exc
 
 
@@ -215,8 +225,68 @@ class SupportQuestion(BaseModel):
 def support_answer(request: SupportQuestion):
     answers = {
         "analysis": "Upload one well-lit leaf or capture a photo. Results are heuristic observations, not disease diagnoses. Request local evidence before choosing any external provider.",
-        "privacy": "Privacy settings are saved on this single-grower backend. External transfers require both the saved switch and consent for that request. Raw photos are not sent to agents.",
+        "privacy": "Privacy settings are saved for your workspace (or the shared local demo when not signed in). External transfers require both the saved switch and consent for that request. Raw photos are not sent to agents.",
         "offline": "Field Mode stores photos in this browser. Queue analysis and explicitly synchronize after reconnecting. OpenCV and cloud agents require the backend; they do not run offline.",
         "pilot": "Pilot enrollment is not configured. No contact information is collected by this prototype.",
     }
     return {"provider": "local FAQ", "answer": answers[request.topic]}
+
+
+@app.get("/integrations/status")
+async def integrations_status():
+    from backend.integrations import integration_status
+
+    return await integration_status()
+
+
+@app.get("/knowledge/status")
+def knowledge_status():
+    from urllib.parse import urlsplit
+
+    databases.init_db()
+    with databases.connection() as db:
+        exists = db.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='rag_passages_fts'"
+        ).fetchone()
+        rows = (
+            db.execute(
+                "SELECT title, source_url, passage FROM rag_passages_fts"
+            ).fetchall()
+            if exists
+            else []
+        )
+    usable = [
+        row
+        for row in rows
+        if urlsplit(row["source_url"]).hostname
+        not in {"example.org", "example.com", "example.net"}
+    ]
+    sources = {row["source_url"]: row["title"] for row in usable}
+    return {
+        "engine": "SQLite FTS5 keyword retrieval",
+        "llm_used": False,
+        "indexed": bool(exists),
+        "passages": len(usable),
+        "sources": [{"url": url, "title": title} for url, title in sources.items()],
+        "notice": "No reviewed scientific passages are indexed."
+        if not usable
+        else "Passages are marked as public by the corpus curator. Review provenance before relying on them.",
+    }
+
+
+@app.get("/billing/status")
+def billing_status():
+    return {
+        "plan": "free",
+        "status": "active",
+        "billing_enabled": False,
+        "payment_collected": False,
+        "message": "Hackathon features are free. Paid subscriptions and checkout are not configured.",
+    }
+
+
+@app.middleware("http")
+async def private_api_responses(request, call_next):
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store"
+    return response

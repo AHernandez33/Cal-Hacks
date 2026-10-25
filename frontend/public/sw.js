@@ -1,8 +1,9 @@
 // Cache public app assets only. API responses, photos, and tokens are never cached.
-const CACHE = "vigiloforge-shell-v3";
+const CACHE = "vigiloforge-shell-v4";
 const SHELL = [
   "/",
   "/offline",
+  "/field",
   "/icon.svg",
   "/icon-192.png",
   "/icon-512.png",
@@ -41,7 +42,7 @@ self.addEventListener("fetch", (event) => {
     return;
   if (
     request.mode === "navigate" &&
-    (url.pathname === "/" || url.pathname === "/offline")
+    ["/", "/offline", "/field"].includes(url.pathname)
   ) {
     event.respondWith(
       fetch(request).catch(

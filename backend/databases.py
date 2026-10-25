@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+from backend.identity import workspace_id
 from typing import Generator
 
 project_root = Path(__file__).resolve().parent.parent
@@ -46,6 +47,15 @@ def connection() -> Generator[sqlite3.Connection, None, None]:
 def init_db() -> None:
     """Create the local preference and audit tables on first access."""
     with connection() as database:
+        database.execute(
+            "CREATE TABLE IF NOT EXISTS workspace_preferences (owner_id TEXT PRIMARY KEY, settings TEXT NOT NULL, updated_at TEXT NOT NULL)"
+        )
+        database.execute(
+            "CREATE TABLE IF NOT EXISTS workspace_creao_runs (owner_id TEXT NOT NULL, run_id TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY(owner_id, run_id))"
+        )
+        database.execute(
+            "CREATE TABLE IF NOT EXISTS workspace_events (id INTEGER PRIMARY KEY AUTOINCREMENT, owner_id TEXT NOT NULL, created_at TEXT NOT NULL, event_type TEXT NOT NULL, decision TEXT NOT NULL, destination TEXT NOT NULL, reason TEXT NOT NULL, field_names_json TEXT NOT NULL)"
+        )
         database.execute(
             """
             CREATE TABLE IF NOT EXISTS privacy_settings (
@@ -87,6 +97,14 @@ def settings_as_dict(row: sqlite3.Row) -> dict:
 
 
 def get_privacy_settings() -> dict:
+    if workspace_id.get() != "local":
+        settings = get_workspace_preferences()
+        return {
+            "collaborative_training_enabled": settings[
+                "collaborative_training_enabled"
+            ],
+            "updated_at": settings["updated_at"],
+        }
     init_db()
     with connection() as database:
         row = database.execute(
@@ -114,6 +132,20 @@ def _record_event(
         name[:64] if name.isidentifier() else "<unrecognized-field>"
         for name in fields[:30]
     ]
+    if workspace_id.get() != "local":
+        cursor = connection.execute(
+            "INSERT INTO workspace_events (owner_id, created_at, event_type, decision, destination, reason, field_names_json) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                workspace_id.get(),
+                utc_now(),
+                event_type,
+                decision,
+                destination,
+                reason,
+                json.dumps(safe_fields),
+            ),
+        )
+        return int(cursor.lastrowid)
     cursor = connection.execute(
         """
         INSERT INTO security_events
@@ -137,6 +169,12 @@ def set_collaborative_training(enabled: bool) -> dict:
     if not isinstance(enabled, bool):
         raise TypeError("enabled must be a boolean.")
 
+    if workspace_id.get() != "local":
+        result = save_workspace_preferences({"collaborative_training_enabled": enabled})
+        return {
+            "collaborative_training_enabled": enabled,
+            "updated_at": result["updated_at"],
+        }
     init_db()
     timestamp = utc_now()
     with connection() as database:
@@ -182,6 +220,25 @@ def list_security_events(limit: int = 25) -> list[dict]:
         raise ValueError("limit must be an integer.")
     limit = max(1, min(limit, 100))
 
+    if workspace_id.get() != "local":
+        init_db()
+        with connection() as db:
+            rows = db.execute(
+                "SELECT * FROM workspace_events WHERE owner_id=? ORDER BY id DESC LIMIT ?",
+                (workspace_id.get(), limit),
+            ).fetchall()
+        return [
+            {
+                "id": row["id"],
+                "created_at": row["created_at"],
+                "event_type": row["event_type"],
+                "decision": row["decision"],
+                "destination": row["destination"],
+                "reason": row["reason"],
+                "field_names": json.loads(row["field_names_json"]),
+            }
+            for row in rows
+        ]
     init_db()
     with connection() as database:
         rows = database.execute(
@@ -216,6 +273,9 @@ DEFAULT_PREFERENCES = {
 
 
 def get_preferences() -> dict:
+    if workspace_id.get() != "local":
+        values = get_workspace_preferences()
+        return {key: values[key] for key in DEFAULT_PREFERENCES}
     init_db()
     with connection() as db:
         db.execute(
@@ -230,6 +290,8 @@ def set_preferences(values: dict) -> dict:
         type(v) is not bool for v in values.values()
     ):
         raise ValueError("Unknown or invalid privacy preference")
+    if workspace_id.get() != "local":
+        return save_workspace_preferences(values)
     get_preferences()
     with connection() as db:
         row = db.execute("SELECT settings FROM app_preferences WHERE id=1").fetchone()
@@ -246,6 +308,14 @@ def set_preferences(values: dict) -> dict:
 
 
 def remember_creao_run(run_id: str) -> None:
+    if workspace_id.get() != "local":
+        init_db()
+        with connection() as db:
+            db.execute(
+                "INSERT OR IGNORE INTO workspace_creao_runs VALUES (?, ?, ?)",
+                (workspace_id.get(), run_id, utc_now()),
+            )
+        return
     with connection() as db:
         db.execute(
             "CREATE TABLE IF NOT EXISTS creao_runs (run_id TEXT PRIMARY KEY, created_at TEXT NOT NULL)"
@@ -256,6 +326,16 @@ def remember_creao_run(run_id: str) -> None:
 
 
 def has_creao_run(run_id: str) -> bool:
+    if workspace_id.get() != "local":
+        init_db()
+        with connection() as db:
+            return (
+                db.execute(
+                    "SELECT 1 FROM workspace_creao_runs WHERE owner_id=? AND run_id=?",
+                    (workspace_id.get(), run_id),
+                ).fetchone()
+                is not None
+            )
     with connection() as db:
         db.execute(
             "CREATE TABLE IF NOT EXISTS creao_runs (run_id TEXT PRIMARY KEY, created_at TEXT NOT NULL)"
@@ -264,3 +344,39 @@ def has_creao_run(run_id: str) -> bool:
             db.execute("SELECT 1 FROM creao_runs WHERE run_id=?", (run_id,)).fetchone()
             is not None
         )
+
+
+def get_workspace_preferences():
+    init_db()
+    with connection() as db:
+        row = db.execute(
+            "SELECT settings, updated_at FROM workspace_preferences WHERE owner_id=?",
+            (workspace_id.get(),),
+        ).fetchone()
+    return {
+        **DEFAULT_PREFERENCES,
+        "collaborative_training_enabled": False,
+        **(json.loads(row["settings"]) if row else {}),
+        "updated_at": row["updated_at"] if row else utc_now(),
+    }
+
+
+def save_workspace_preferences(values):
+    init_db()
+    with connection() as db:
+        row = db.execute(
+            "SELECT settings FROM workspace_preferences WHERE owner_id=?",
+            (workspace_id.get(),),
+        ).fetchone()
+        settings = {
+            **DEFAULT_PREFERENCES,
+            "collaborative_training_enabled": False,
+            **(json.loads(row["settings"]) if row else {}),
+            **values,
+        }
+        timestamp = utc_now()
+        db.execute(
+            "INSERT INTO workspace_preferences VALUES (?, ?, ?) ON CONFLICT(owner_id) DO UPDATE SET settings=excluded.settings, updated_at=excluded.updated_at",
+            (workspace_id.get(), json.dumps(settings), timestamp),
+        )
+    return {**settings, "updated_at": timestamp}

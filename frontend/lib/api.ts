@@ -26,9 +26,24 @@ export function getAccessToken() {
     ? ""
     : sessionStorage.getItem("vigilo-access-token") || "";
 }
+export function getWorkspaceId() {
+  return typeof window === "undefined"
+    ? "local"
+    : sessionStorage.getItem("vigilo-workspace") || "local";
+}
+export function retentionKey() {
+  return `vigilo-retention:${getWorkspaceId()}`;
+}
+export function setWorkspaceSession(token: string, id: string) {
+  setAccessToken(token);
+  sessionStorage.setItem("vigilo-workspace", id);
+  window.dispatchEvent(new Event("vigilo-account-change"));
+}
 export function setAccessToken(token: string) {
+  sessionStorage.removeItem("vigilo-workspace");
   if (token) sessionStorage.setItem("vigilo-access-token", token);
   else sessionStorage.removeItem("vigilo-access-token");
+  window.dispatchEvent(new Event("vigilo-account-change"));
 }
 export async function requestJSON<T>(
   path: string,

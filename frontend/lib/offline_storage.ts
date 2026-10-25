@@ -1,3 +1,4 @@
+import { getWorkspaceId } from "./api";
 export type Observation = {
   id: string;
   createdAt: string;
@@ -10,7 +11,10 @@ const DB_NAME = "vigilo-local-observations";
 const STORE = "photos";
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
+    const req = indexedDB.open(
+      getWorkspaceId() === "local" ? DB_NAME : `${DB_NAME}-${getWorkspaceId()}`,
+      1,
+    );
     req.onupgradeneeded = () => {
       if (!req.result.objectStoreNames.contains(STORE))
         req.result.createObjectStore(STORE, { keyPath: "id" });

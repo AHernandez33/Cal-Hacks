@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState } from "react";
 import {
   requestJSON,
@@ -82,6 +83,9 @@ export default function AgentPanel({
     <section className="panel">
       <p className="eyebrow">Evidence workflow</p>
       <h2>Investigate with context</h2>
+      <p>
+        <Link href="/research">Explore the SQLite research library →</Link>
+      </p>
       <p className="muted">
         Local mode uses rules and SQLite retrieval. External providers receive
         only five numbers, the anomaly score, crop category, and approved public

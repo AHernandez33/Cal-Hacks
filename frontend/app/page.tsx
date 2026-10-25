@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import IntegrationStatus from "../components/integration_status";
+import Link from "next/link";
 import BrandHero from "../components/brand_hero";
 import VisionPanel from "../components/vision_panel";
 import AgentPanel from "../components/agent_panel";
@@ -15,16 +17,6 @@ export default function HomePage() {
   return (
     <main className="container">
       <PWARegister />
-      <nav className="navigation" aria-label="Main">
-        <a href="#home">
-          VigiloForge <span className="status-dot" aria-hidden="true" />
-        </a>
-        <div className="actions">
-          <a href="#dashboard">Dashboard</a>
-          <a href="#privacy">Privacy</a>
-          <a href="#field">Field Mode</a>
-        </div>
-      </nav>
       <BrandHero />
       <section className="overview" aria-label="Platform overview">
         <article>
@@ -70,10 +62,14 @@ export default function HomePage() {
           <div id="privacy">
             <PrivacyPanel />
           </div>
+          <p>
+            <Link href="/federated">Open the learning models page →</Link>
+          </p>
           <FederatedPanel />
           <TelemetryPanel />
         </div>
       </div>
+      <IntegrationStatus />
       <CustomerChat />
       <footer>
         VigiloForge SCD · Cal Hacks 13.0 · Heuristic observations, transparent

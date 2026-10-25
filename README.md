@@ -1,133 +1,132 @@
 # VigiloForge — Secured Crop Detector
 
-**Smarter Farming. Private by Design.** Cal Hacks 13.0 research prototype.
+**Smarter Farming. Private by Design.** A Cal Hacks 13.0 research prototype.
 
-Next.js dashboard + FastAPI/OpenCV + SQLite FTS5 + local Fetch.ai messaging + synthetic PyTorch federated averaging. Local investigation stages are rules and retrieval, not four independently hosted AI agents. CREAO is an optional hosted-agent integration.
+FastAPI/OpenCV, Next.js, SQLite FTS5 public-reference retrieval, genuine local Fetch.ai messaging, and a synthetic PyTorch federated learning demonstration. Local investigation stages use rules/retrieval. No new LLM integration is included in this update.
 
-## Requirements
+## Start on Windows (VS Code / PowerShell)
 
-- Python 3.12, Node.js 22+ (validated here on Python 3.12.14 / Node 24.19.0).
-- CPU is sufficient. Camera access needs a browser on localhost or HTTPS.
-- Use the existing checkout. Cloud tasks are already isolated; do not create a worktree unless requested.
+Use the updated checkout containing `backend/`, `frontend/`, `requirements.txt`, and `scripts/`. The older `Cal Hacks/SCD/1` copy is a separate folder and does not update when another checkout is pulled.
 
-## Installation on Linux / Codex cloud
+```powershell
+cd "C:\Users\herna\VigiloForge-neon"
+git pull --ff-only origin main
+powershell -ExecutionPolicy RemoteSigned -File .\scripts\start_windows.ps1 -Install
+```
 
-From the repository root:
+If you used a different fresh checkout, change only the first path. Stop and read the error if `cd` or `git pull` fails; do not keep running commands in the old folder. Open the same folder in VS Code (`code .`). Preserve local edits before pulling.
+
+The launcher uses Python 3.12, installs CPU dependencies and frozen npm dependencies, initializes the RAG index, then starts FastAPI, the Fetch receiver, and Next.js **from the same root**. Existing `.env` and `.env.local` files are preserved. Keep the terminal open; Ctrl+C stops the stack. Stop old servers first if ports 8000, 8001, or 3000 are occupied. The launcher never stops an unrelated application.
+
+Subsequent starts when dependencies have not changed:
+
+```powershell
+powershell -ExecutionPolicy RemoteSigned -File .\scripts\start_windows.ps1
+```
+
+Open the local application at port 3000. It does not require a deployment administrator token for loopback development. Use `/login` for a separate workspace or the dashboard's local demo. Fetch may take time to finish SDK initialization; verify a real consented message after startup.
+
+The PowerShell wrapper was reviewed on Linux but could not be executed on Windows here. The underlying Python launcher and application flows were exercised in this environment. Python 3.12, Node 22+, and npm are required.
+
+## Linux / cloud
+
+Use the existing checkout; cloud tasks are already isolated. Do not create a Git worktree unless explicitly requested.
 
 ```bash
 bash scripts/setup.sh
-cp .env.example .env
-cp frontend/.env.example frontend/.env.local
+# Only if these do not already exist:
+cp -n .env.example .env
+cp -n frontend/.env.example frontend/.env.local
+.venv/bin/python scripts/prepare_data.py
+.venv/bin/python scripts/run_stack.py
 ```
 
-The script installs Python packages in `.venv`, runs frozen npm installation, and initializes a separate SQLite database at `.local/vigiloforge.db`. It preserves the uploaded `data/vigiloforge.db`. The current knowledge file contains an illustrative reference; it is indexed for setup but deliberately excluded from scientific search results. Add reviewed public references using the existing JSON schema and rerun ingestion before claiming evidence-backed results.
-
-## Installation on Windows PowerShell
-
-```powershell
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-Copy-Item .env.example .env
-Copy-Item frontend/.env.example frontend/.env.local
-$env:SQLITE_DB_PATH = ".local/vigiloforge.db"
-.\.venv\Scripts\python.exe -m backend.RAG.ingest
-cd frontend
-npm ci
-cd ..
-```
-
-Do not overwrite an existing `.env` or `.env.local`; merge the documented variable names instead. Keep their values out of Git. On Windows, replace `.venv/bin/python` below with `.\.venv\Scripts\python.exe`.
-
-## Run (three terminals)
-
-Backend, from repository root:
+`run_stack.py` starts a development frontend; use a production build for PWA testing. For manual service startup:
 
 ```bash
 .venv/bin/python -m uvicorn backend.main:app --env-file .env --host 127.0.0.1 --port 8000
-```
-
-Optional local Fetch agent, from repository root (loads the same seed and database settings):
-
-```bash
 .venv/bin/python scripts/run_fetch.py
-```
-
-Frontend:
-
-```bash
+# In another terminal:
 cd frontend
 npm run dev -- --hostname 127.0.0.1
 ```
 
-The agent client defaults to the backend's Python interpreter. Set `FETCH_PYTHON` only if a separate compatible environment is needed. Its address is derived from the same `FETCH_AGENT_SEED` as the receiver; `fetch_agent_address` is an optional override for a different locally reachable receiver. Local messaging uses port 8001 and does not need public registration. The SDK may still probe its ledger during initialization; a ledger warning does not establish local messaging failure.
+On Windows, replace `.venv/bin/python` with `.\.venv\Scripts\python.exe`.
 
-Check backend `/health`, then open the dashboard in your local browser. Use Privacy → Connect / refresh before changing preferences. If the backend has `VIGILO_API_TOKEN`, enter it there. The token is stored only in that browser tab's session storage and is not compiled into public JavaScript.
+## Pages and workflow
 
-## Workflow and privacy
+| Page | Purpose |
+| --- | --- |
+| `/` | Image upload/camera, numerical observations, explained heatmap, consented investigation, privacy controls, telemetry, integration diagnostics |
+| `/federated` | Three explicitly simulated clients, real ten-round training charts, model architecture, metric definitions, local-only comparison |
+| `/research` | Search the actual SQLite FTS5 index, inspect passage counts and source links; no LLM answer |
+| `/field` | Mobile photo storage, queue, explicit synchronization, installation guidance |
+| `/login` | Create/sign in to a pseudonymous workspace with a private key; no name or email |
+| `/plans` | Free prototype plan and a clearly unavailable future pilot; no live billing |
 
-1. Upload or capture one leaf. The backend returns five numerical features and a private heatmap. No disease diagnosis is produced.
-2. Request a **local** investigation for an explicitly labeled rules/retrieval report.
-3. For Fetch or CREAO, first enable external services, then authorize the specific request. The backend checks both permissions and restricts payload fields. Raw photos are not sent to agents.
-4. The synthetic federated demo requires separate per-client opt-in for each run. Its metrics are simulation results; the demo is not connected to real customer training and provides neither differential privacy nor secure aggregation.
-5. Field Mode can retain photos in IndexedDB, queue them, and synchronize with explicit permission after reconnecting. Sync processes photos without storing them on the server or invoking agents. Revoking sync blocks subsequent requests; it cannot recall an upload already in progress.
-6. Retention permission controls new browser saves. Delete previously saved photos in Field Mode. The last loaded retention choice is kept on the device for offline use; this is a browser-storage setting, not a server retention guarantee.
+Image features and the anomaly index are heuristics, not disease diagnoses or probabilities. The overlay marks yellow/brown classification regions; it is not a temperature map. Camera direction/device controls support rear phone cameras and selectable webcams, subject to real browser/device permissions.
 
-This is a **single-grower installation**, not a multi-tenant service. Preferences and CREAO run ownership apply to the deployment. All non-health API routes require the configured bearer token; when absent they are restricted to loopback clients. Do not publish the token as a `NEXT_PUBLIC_*` variable. Do not expose a tokenless API behind a reverse proxy: the proxy may appear as a loopback client. Before supporting multiple growers, implement user accounts, per-user preferences, run ownership, quotas, and request limits at the ingress/application layer.
+The federated model is LeafRiskMLP (5 → 64 → 32 → 16 → 1) trained on fabricated numerical observations and labels. Simulated greenhouses are datasets on one machine, not connected physical farms. FedAvg averages parameter updates; it provides neither secure aggregation nor differential privacy. Client opt-ins apply only to that run. The compute-heavy demo remains loopback-only.
 
-## Original logo
+## Private workspaces
 
-Supply your existing artwork at `frontend/public/vigiloforge-logo.png`. It is displayed with `next/image`; a visible pending-artwork message appears when absent. No replacement logo was invented. PWA PNG icons are rasterizations of the existing leaf icon, not the VigiloForge banner.
+A workspace key is generated once and stored only as a hash on the backend. It is the recovery/sign-in credential; no email recovery exists. Login issues a 24-hour bearer session held in browser session storage. Signing out revokes that session. Workspace deletion removes active server records; browser photos, backups, and provider-held data require separate handling.
 
-The black/green/cyan dashboard uses self-hosted Orbitron and Inter font packages, animated borders, button shine, and reduced-motion support. Existing duplicate starter files are preserved and excluded from the active frontend's TypeScript and lint scopes.
+Preferences, CREAO run ownership, audit visibility, and in-app browser-photo storage are scoped to each workspace. Browser stores are not encrypted and remain accessible to someone controlling that browser profile. Keep the workspace key in a password manager; never include it in screenshots or Git.
 
-## CREAO
+Unsigned local development uses a separate shared demo workspace. Do not treat it as a private account. `VIGILO_API_TOKEN` is an optional **administrator setup password**, not a customer login. Remote registration requires administrator authorization; pilot users sign in using privately supplied workspace keys. All current features are on the free prototype plan; paid billing is not configured.
 
-Configure `creao_api_key` and `creao_app_id` securely on the backend. The hosted app must have a text input called `prompt`. The adapter currently targets `https://agent.creao.ai/api/v1`; verify its request/response contract against your hosted app. This integration has not been validated with real credentials.
+Before public deployment use HTTPS, persistent storage, ingress request limits, and trusted pilot users. The telemetry feed is shared at installation level, so per-farm authorization must be added before hosting private multi-farm records.
 
-Request CREAO from the investigation panel and use **Check hosted run status** to poll. Only run IDs created through this installation are available through that route. The local four-stage checklist is not evidence that four CREAO agents ran. Configure and verify your hosted multi-agent workflow separately.
+## Privacy / offline behavior
 
-## Tiger Data
+Saved external-service permission and per-request consent are both checked by the backend. Only permitted numerical observations, broad crop category, anomaly score, and curated public passages can reach agents; images are excluded. Queued photo sync separately requires its saved preference and explicit permission. Synced images are processed and returned, not retained on the server.
 
-Create the table in `docs/telemetry_schema.sql` and populate it with actual telemetry. Set `TIGER_DATABASE_URL` securely for a read-only PostgreSQL role. The connection uses `sslmode=verify-full`; configure the provider's CA using supported PostgreSQL trust settings if necessary. Do not disable TLS verification.
+Photos are stored in IndexedDB under the current workspace. Retention choice controls new saves; delete existing photos explicitly. Its last loaded choice is retained locally for offline use. Sign in online before relying on account-specific offline storage in a new tab/session. Signing out does not erase saved photos.
 
-`GET /telemetry/history` reads actual records and returns 503 when unconfigured/unreachable. `GET /telemetry/history?source=demo` is an explicitly labeled synthetic alternative. This service requires direct PostgreSQL connectivity; an HTTPS-only secret proxy cannot provide PostgreSQL authentication. No live cloud database was available for validation.
-
-## PWA / mobile validation
-
-Use a production build on HTTPS (or localhost). The service worker registers only in production. Visit the dashboard and Field Mode online before testing offline. Public shell assets and Next.js static chunks are cached; API responses, photos, and access tokens are not placed in the service-worker cache. Photos remain in IndexedDB until deleted. Browser data eviction/clearing can delete them; this is not a durable backup.
-
-Cloud agents and server OpenCV do not work offline. Install prompts vary by browser. Android/iOS installation and physical camera devices still require manual testing. Cached shell versions can remain until a new worker activates; increment its cache version with future shell changes.
-
-## Checks
-
-From repository root:
-
-```bash
-.venv/bin/python -m unittest discover -s tests -p test_api.py
-.venv/bin/python -m unittest discover -s tests -p test_federated.py
-```
-
-The existing `tests/test_fetch_message.py` is a continuously running interactive agent demonstration, not a terminating unit test. Do not use unrestricted test discovery to run it as a CI suite. For local messaging, start `scripts/run_fetch.py`, enable external services, and request Fetch from the dashboard.
-
-Frontend:
+Production PWA shell/static assets are cached; API responses, credentials, and photos are not stored in the service-worker cache. Visit dashboard/Field Mode online before using them offline. OpenCV and agents require the server. For production testing:
 
 ```bash
 cd frontend
-npx tsc --noEmit
-npm run lint
 npm run build
 npm run start -- --hostname 127.0.0.1
 ```
 
-See `docs/validation.md` for the outcomes verified for this update.
+A physical phone needs a deployed HTTPS origin; a laptop's loopback URL is not reachable from the phone. iOS/Android installation and physical devices still require testing. Browser storage can be evicted, so local history is not a durable backup.
 
-## Render + Vercel
+## Integrations and scientific evidence
 
-`render.yaml` describes a single-instance FastAPI service with a paid persistent disk for SQLite. Review costs and settings before creating it. Set `FRONTEND_ORIGIN` to your actual HTTPS frontend origin. The generated `VIGILO_API_TOKEN` belongs only on the backend and in the owner's browser session. Keep a secure copy. Optional CREAO/Tiger variables are set separately in service settings.
+Read [the complete setup checklist](docs/integrations_setup.md) for Tiger Data, Fetch.ai, CREAO, and the scientific corpus.
 
-On Vercel, select `frontend` as the root directory, use `npm ci` / `npm run build`, and set `NEXT_PUBLIC_API_URL` to the actual HTTPS Render URL **before building**. Changes to this variable require rebuilding the frontend. Never use a loopback API URL for mobile/public deployments.
+SQLite retrieval is in `backend/RAG/retrieve.py`; ingestion is in `backend/RAG/ingest.py`. API routes are `/knowledge/status` and `/knowledge/search?query=leaf+yellowing`. The bundled example.org placeholder is excluded from evidence. Add reviewed agricultural passages and run `scripts/prepare_data.py` before expecting scientific citations. Suggested organization links are not presented as retrieved evidence.
 
-The Render blueprint starts only FastAPI. Its Fetch subprocess requires a separately running receiver reachable through a supported endpoint; the current direct resolver assumes that receiver is on the same machine at port 8001. Until you configure a supervised same-machine receiver or adapt its transport, use local investigations or configured CREAO on Render. The compute-intensive federated endpoint remains loopback-only and must not be exposed by changing that restriction alone.
+Tiger Data uses `TIGER_DATABASE_URL` with full TLS verification and a read-only database role. Apply `docs/telemetry_schema.sql`, import actual readings, and run `scripts/check_tiger.py`. Demo telemetry is separate and explicitly synthetic. Credentials and a real cloud database were not available for validation.
 
-After deployment verify health, authenticated image upload, CORS, rejected unauthorized requests, privacy persistence across restarts, and the real frontend-to-backend flow. Public deployment, provider credentials, domain setup, and physical device validation are not completed by adding these files.
+Fetch uses the API's interpreter by default; both receiver and client load the same `.env`. The client auto-derives the local receiver address unless overridden. `FETCH_AGENT_ENDPOINT` can specify a remote HTTPS receiver. Configuration/port reachability does not prove a successful agent-message response. Public Agentverse/mailbox integration is not verified.
+
+CREAO's existing adapter is retained, with no additional LLM work. Verify its assumed API contract and configure `creao_api_key` and `creao_app_id` securely before a real test. Four local report stages do not establish four hosted agents ran.
+
+## Original artwork
+
+The animated banner uses `frontend/public/vigiloforge-logo.png` at the supplied 3:1 aspect ratio, with a light sweep, glow and reduced-motion support. Original typography is preserved by using the image. The chat preview was not available as a downloadable asset; the PNG still needs to be supplied. No replacement logo was invented. UI fonts are self-hosted Inter and Orbitron.
+
+## Validation
+
+```bash
+.venv/bin/python -m unittest discover -s tests -p test_api.py
+.venv/bin/python -m unittest discover -s tests -p test_federated.py
+.venv/bin/python -m unittest discover -s tests -p test_workspaces.py
+.venv/bin/python -m unittest discover -s tests -p test_integrations.py
+cd frontend
+npx tsc --noEmit
+npm run lint
+npm run build
+```
+
+Do not use unrestricted test discovery: `test_fetch_message.py` is a continuous interactive agent demonstration, not a terminating suite. See `docs/validation.md` for actual outcomes and remaining limitations.
+
+## Deployment
+
+Review `render.yaml` before provisioning; its persistent disk uses a paid service. Set real HTTPS `FRONTEND_ORIGIN`, keep SQLite on persistent storage, and configure a private administrator token. Do not publish that token as a frontend environment variable. The blueprint starts only the API; it does not supervise a Fetch receiver. Configure a durable receiver/transport separately.
+
+On Vercel use root `frontend`, install `npm ci`, build `npm run build`, and set `NEXT_PUBLIC_API_URL` to the real HTTPS API origin before building. Rebuild after changing it. Verify authenticated requests, CORS, account isolation, privacy persistence and provider connections after deployment. No public Render/Vercel deployment or paid checkout has been performed here.

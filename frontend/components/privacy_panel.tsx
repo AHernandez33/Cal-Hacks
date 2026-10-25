@@ -1,6 +1,11 @@
 "use client";
 import { useState } from "react";
-import { setAccessToken, requestJSON, type PrivacySettings } from "../lib/api";
+import {
+  setAccessToken,
+  retentionKey,
+  requestJSON,
+  type PrivacySettings,
+} from "../lib/api";
 const labels: Record<keyof PrivacySettings, string> = {
   external_services_enabled: "Allow external agent services",
   collaborative_training_enabled:
@@ -22,7 +27,7 @@ export default function PrivacyPanel() {
       const value = await requestJSON<PrivacySettings>("/privacy/settings");
       setSettings(value);
       localStorage.setItem(
-        "vigilo-retention",
+        retentionKey(),
         String(value.local_retention_enabled),
       );
       setToken("");
@@ -46,7 +51,7 @@ export default function PrivacyPanel() {
       });
       setSettings(result);
       localStorage.setItem(
-        "vigilo-retention",
+        retentionKey(),
         String(result.local_retention_enabled),
       );
       setMessage("Preference saved.");
@@ -63,19 +68,30 @@ export default function PrivacyPanel() {
       <p className="eyebrow">Control center</p>
       <h2>Your data. Your choices.</h2>
       <p className="muted">
-        Single-grower prototype: these settings apply to this backend
-        installation. Hosted access requires the token supplied by its owner.
+        Signed-in workspaces keep separate sharing preferences. Without a
+        workspace, local development uses shared demo settings.
       </p>
-      <label className="field">
-        Deployment access token
-        <input
-          type="password"
-          autoComplete="off"
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-          placeholder="Leave empty for local development"
-        />
-      </label>
+      <p className="muted">
+        <a href="/login">Sign in with a private workspace key</a> — no name or
+        email required.
+      </p>
+      <details>
+        <summary>Deployment administrator access (optional)</summary>
+        <p className="muted">
+          This is a server-owner setup password, not a customer login. Local
+          development does not need it. Never share it with customers.
+        </p>
+        <label className="field">
+          Deployment access token
+          <input
+            type="password"
+            autoComplete="off"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            placeholder="Leave empty for local development"
+          />
+        </label>
+      </details>
       <div className="actions">
         <button disabled={busy} onClick={() => void connect()}>
           Connect / refresh

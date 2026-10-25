@@ -1,45 +1,46 @@
-# Verified scope — October 24, 2026
+# Validation record — October 24, 2026 (Pacific time)
 
-Validated in the cloud checkout, using Python 3.12.14, Node 24.19.0, and CPU PyTorch.
+This records observed outcomes, not a claim that external services or real crops were validated.
 
-| Check | Result |
+## Current update
+
+| Check | Outcome |
 | --- | --- |
-| `bash scripts/setup.sh` | Passed, including a repeated run |
-| Python imports / compilation | Passed |
-| `test_api.py` | 17 tests passed |
-| `test_federated.py` | 5 tests passed |
-| Ten-round synthetic federated API run | Passed within API tests |
-| `npx tsc --noEmit` | Passed |
-| `npm run lint` | Passed without errors or warnings |
-| `npm run build` | Passed |
-| FastAPI health and Next production startup | Passed |
-| Real local Fetch.ai request through FastAPI | HTTP 200, genuine agent-message response |
-| Chromium: upload → OpenCV → local report | Passed |
-| Chromium: upload → Fetch report | Passed |
-| Chromium: IndexedDB save → queue → consent → backend analysis | Passed |
-| Chromium: offline reload of warmed Field Mode | Passed; saved photo history visible |
-| Chromium: 390px viewport | No horizontal overflow |
-| Browser JavaScript errors in tested flow | None |
+| API suite (`test_api.py`) | 17 passed |
+| Existing federated suite (`test_federated.py`) | 5 passed |
+| Workspace suite (`test_workspaces.py`) | 12 passed |
+| Integration diagnostics suite (`test_integrations.py`) | 5 passed |
+| Total terminating backend tests | **39 passed** |
+| TypeScript | Passed |
+| ESLint | Passed, no errors or warnings |
+| Next.js production build | Passed; dashboard, field, federated, login, plans, research and offline routes generated |
+| Python full-stack launcher | Started API, genuine Fetch receiver and development frontend from one checkout; stop signal cleaned up all child services |
+| Windows PowerShell wrapper | Reviewed; not executable on this Linux host, so native Windows operation is unverified |
+| Chromium workspace creation / sign-in / logout | Passed; revoked session rejected by API |
+| Two-account preference and photo-store separation | Passed in browser and API checks |
+| Camera permission / stream open-stop | Passed with browser-simulated hardware; not a physical camera test |
+| Real image upload and explained heatmap | Passed with a synthetic green-leaf-shaped fixture |
+| Workspace consent → genuine local Fetch message → report | Passed; actual agent response received |
+| Ten-round federated model page | Passed; two charts and ten history rows reflect the actual generated training results |
+| Research page and actual SQLite retrieval | Passed; correctly reported zero vetted passages instead of citing the placeholder |
+| Plans page | Correctly showed free access and no configured paid billing |
+| Six pages at 390px width | No horizontal overflow |
+| Browser JavaScript errors in tested feature flow | None |
+| Production PWA worker v4 and account-scoped offline history | Passed; queued photo survived offline reload, then synchronized with explicit consent after reconnect |
+| Final production API → Fetch receiver | HTTP 200 genuine message response with workspace authorization |
 
-The existing Fetch interactive demonstration was not represented as a completed unit suite. The existing 5 federated tests and 17 added API tests are terminating automated checks. Browser checks used a synthetic green ellipse image, actual running API/agent/frontend processes, and system Chromium through Playwright. They do not establish biological accuracy or physical-camera compatibility.
+Workspace tests cover credential hashing, session expiry/revocation, account deletion, cross-workspace privacy/audit/run ownership, remote signup restrictions, and uncached API responses. Integration tests distinguish a responding receiver endpoint from verified agent messaging, reject remote plain HTTP/credential-bearing URLs, and verify placeholder exclusion.
 
-The Fetch SDK logged unavailable ledger/registry services during startup. Local direct messaging nevertheless completed successfully after startup. Public Agentverse registration and mailbox communication were not tested.
+The existing `tests/test_fetch_message.py` is an interactive continuous demonstration and was not counted as a terminating unit test.
 
-The current scientific corpus contains only an example.org placeholder. Search excludes that domain, so the observed reports correctly returned zero citations. Add manually reviewed source passages; no real citations or scientific claims were invented.
+## Remaining external validation
 
-CREAO and Tiger Data were tested only for honest missing-configuration behavior. There were no credentials for successful live-provider checks. CREAO request/response compatibility, multi-agent execution on CREAO, and a real PostgreSQL query remain unverified.
+- Tiger Data credentials and a real historical dataset were unavailable. The diagnostic returned a clear not-configured failure; no live database success is claimed.
+- CREAO/LLM work was intentionally excluded. Its existing adapter is unverified against a live hosted app and may need contract changes.
+- The scientific corpus still contains only an illustrative source, which is excluded from retrieval. A university source request returned HTTP 403 in this environment; no source text was invented or silently promoted to vetted evidence.
+- Original logo artwork was visible in chat but unavailable as an accessible image file. Its PNG still needs to be supplied; the missing-artwork state remains honest.
+- Real phone cameras, NexiGo hardware, Android/iOS PWA installation, public Render/Vercel deployments, native Windows execution and paid billing remain unverified.
+- Federated results are synthetic single-machine simulations, not farm-field performance; no secure aggregation or differential privacy is claimed.
+- Authorized workspaces share the installation's telemetry feed. Per-farm database isolation is not implemented.
 
-Original logo artwork was absent. The tested UI showed a pending-artwork notice. PWA installability on physical Android/iOS devices, actual webcam capture, public Render/Vercel deployments, custom domains, reverse-proxy behavior, and multi-user authorization remain outside the validated scope.
-
-## Remaining actions
-
-1. Supply `frontend/public/vigiloforge-logo.png`.
-2. Replace illustrative knowledge data with reviewed public agricultural material, then rerun ingestion.
-3. Configure a real CREAO hosted app and securely supply its credentials; verify the API contract and run-result polling.
-4. Provision Tiger Data, apply `telemetry_schema.sql`, ingest real sensor observations, and configure a read-only TLS-verified connection.
-5. Review deployment costs/settings and deploy Render + Vercel; set the actual API URL and frontend CORS origin.
-6. Configure Fetch process supervision / transport for hosted deployment. The supplied Render blueprint starts only FastAPI.
-7. Test phone/webcam permissions, PWA installation, offline reload, and consent-controlled synchronization on physical devices.
-8. Add per-user identity/permissions and ingress request limits before turning the single-grower prototype into a multi-user product.
-
-The cloud installation/startup instructions were saved as configuration draft fields. Draft persistence does not publish an environment or prove restoration in a fresh task.
+See `integrations_setup.md` for the exact outside actions needed to complete provider and corpus setup.

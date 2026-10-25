@@ -6,6 +6,7 @@ import os
 import sys
 from pathlib import Path
 from backend.RAG.pipeline import build_context
+from backend.integrations import fetch_status
 from backend.privacy import authorize_external_payload
 
 project_root = Path(__file__).resolve().parent.parent
@@ -21,6 +22,15 @@ async def request_fetch_evidence(
     context = build_context(
         features=features, anomaly_score=anomaly_score, crop_category=crop_category
     )
+    payload = authorize_external_payload(
+        provider="fetch",
+        payload=context["agent_payload"],
+        explicit_authorization=explicit_authorization,
+    )
+    readiness = await fetch_status()
+    if not readiness["ready"]:
+        raise RuntimeError(readiness["message"])
+    # Recheck after the asynchronous readiness probe, immediately before sending.
     payload = authorize_external_payload(
         provider="fetch",
         payload=context["agent_payload"],
@@ -47,7 +57,7 @@ async def request_fetch_evidence(
         raise
     if process.returncode:
         raise RuntimeError(
-            "Fetch client failed. Verify the agent is running and its address matches."
+            "Fetch messaging failed. Confirm the receiver has finished startup, both processes load the same .env, and fetch_agent_address matches the receiver. See /integrations/status."
         )
     try:
         result = json.loads(stdout)

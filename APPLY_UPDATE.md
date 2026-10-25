@@ -1,24 +1,17 @@
-# Apply this update
+# Apply the update from GitHub
 
-This archive contains only updated and new files, with paths relative to the project root. It does not include dependency folders, virtual environments, credentials, original logo artwork, or your database.
+1. Open the fresh checkout containing `backend/`, `frontend/`, and `requirements.txt` in VS Code. Your old `Cal Hacks/SCD/1` folder is a separate copy.
+2. Preserve any local edits, then run `git pull --ff-only origin main`. Stop on an error; do not reset or force-pull over your work.
+3. In PowerShell at that checkout's root run:
 
-1. Make a backup or Git checkpoint of your current project.
-2. Extract the ZIP into the folder containing `backend/` and `frontend/` (for your fresh upload, normally `C:\Users\herna\VigiloForge-clean`). Allow replacement of the listed updated files; keep your other files.
-3. Read `docs/updated_files.md` for the complete file list and `docs/validation.md` for verified and outstanding work.
-4. Install the updated dependencies and configure local settings using `README.md`. Keep existing `.env` values; do not overwrite them with `.env.example`.
-5. Start the backend, optional Fetch receiver, and frontend using the documented commands.
-6. Add your real banner at `frontend/public/vigiloforge-logo.png`.
+   ```powershell
+   powershell -ExecutionPolicy RemoteSigned -File .\scripts\start_windows.ps1 -Install
+   ```
 
-Windows dependency refresh, from the project root, assuming a Python 3.12 `.venv` already exists:
+4. The script creates/uses a Python 3.12 `.venv`, preserves existing configuration files, installs dependencies, prepares retrieval data, and starts all three services.
+5. Keep the terminal open. Stop old servers first if ports 3000, 8000, or 8001 are already occupied. Ctrl+C stops this stack.
+6. Open the dashboard at port 3000. Use `/login`, `/federated`, `/research`, `/field`, and `/plans` for the new pages.
 
-```powershell
-.\.venv\Scripts\python.exe -m pip install torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-$env:SQLITE_DB_PATH = ".local/vigiloforge.db"
-.\.venv\Scripts\python.exe -m backend.RAG.ingest
-cd frontend
-npm ci
-cd ..
-```
+For later starts omit `-Install` unless dependencies changed. Do not replace `.env` values with `.env.example`. Read `README.md` and `docs/integrations_setup.md` for Tiger Data, Fetch.ai, CREAO, scientific sources, and deployment requirements.
 
-If no environment exists, follow the full installation section of `README.md` first. When receiving this update through GitHub, use `git pull --ff-only` in your existing checkout instead of extracting the archive. Review local changes before pulling; do not discard them to resolve a conflict.
+If applying an archive instead, back up the project and extract into the same project root. Archives omit dependencies, virtual environments, credentials, and databases. Do not mix the old and new checkouts when starting services.

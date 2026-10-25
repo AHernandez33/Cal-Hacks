@@ -5,6 +5,7 @@ import json
 import os
 import sys
 
+from backend.integrations import fetch_endpoint
 from uagents_core.identity import Identity
 from uagents.communication import send_sync_message
 from uagents.resolver import RulesBasedResolver
@@ -23,7 +24,7 @@ async def investigate(payload: dict) -> dict:
     )
 
     # local endpoint for the running agent
-    resolver = RulesBasedResolver(rules={address: "http://127.0.0.1:8001/submit"})
+    resolver = RulesBasedResolver(rules={address: fetch_endpoint()})
 
     request = InvestigationRequest(
         task="investigate_visible_discoloration",

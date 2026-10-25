@@ -734,3 +734,191 @@ body {
     transform: none;
   }
 }
+
+/* Explanations and workspace pages share the brand's readable dashboard language. */
+.route-page {
+  padding-top: 44px;
+  padding-bottom: 60px;
+}
+.route-page > .hero-copy {
+  max-width: 850px;
+}
+.navigation {
+  flex-wrap: wrap;
+}
+.navigation .actions {
+  gap: 18px;
+}
+.navigation .actions a {
+  font-size: 0.68rem;
+}
+.greenhouse-cards {
+  display: grid;
+  gap: 12px;
+  margin: 24px 0;
+}
+.greenhouse-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid #00ed6426;
+  padding: 15px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.greenhouse-card.selected {
+  border-color: var(--green);
+  background: #00ed6409;
+}
+.greenhouse-card strong,
+.greenhouse-card small {
+  display: block;
+}
+.greenhouse-card strong {
+  font-size: 0.85rem;
+}
+.greenhouse-card small {
+  color: var(--muted);
+  font-size: 0.76rem;
+  margin-top: 5px;
+}
+.metric-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 24px 0;
+}
+.metric-cards article {
+  background: #0009;
+  border: 1px solid #00ed6426;
+  border-radius: 8px;
+  padding: 16px;
+  min-width: 0;
+}
+.metric-cards span,
+.metric-cards strong,
+.metric-cards small {
+  display: block;
+}
+.metric-cards span {
+  font-size: 0.8rem;
+}
+.metric-cards strong {
+  font-family: Orbitron, sans-serif;
+  font-size: 1.55rem;
+  color: var(--green);
+  margin: 10px 0;
+  overflow-wrap: anywhere;
+}
+.metric-cards small {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.metric-chart {
+  margin: 28px 0;
+  padding: 16px;
+  border: 1px solid #00ed6426;
+  border-radius: 8px;
+  background: #0007;
+}
+.metric-chart svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.metric-chart h3 {
+  margin-top: 0;
+}
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.chart-legend i {
+  width: 16px;
+  height: 3px;
+}
+.model-details {
+  margin-top: 24px;
+}
+summary {
+  cursor: pointer;
+  color: var(--teal);
+  padding: 12px 0;
+  font-size: 0.85rem;
+}
+.key-card {
+  border: 1px solid var(--teal);
+  padding: 18px;
+  margin-top: 24px;
+  border-radius: 8px;
+}
+.key-card code {
+  display: block;
+  overflow-wrap: anywhere;
+  user-select: all;
+  font-size: 0.85rem;
+}
+.plan-price {
+  font-family: Orbitron, sans-serif;
+  color: var(--green);
+  font-size: 2.5rem;
+}
+.status-message {
+  overflow-wrap: anywhere;
+  padding: 20px 0;
+}
+.integration-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+}
+.research-status {
+  border-left: 2px solid var(--teal);
+  padding: 8px 18px;
+  margin: 20px 0;
+}
+.research-result {
+  border-top: 1px solid #00ed6433;
+  margin-top: 24px;
+  padding-top: 12px;
+}
+blockquote {
+  margin: 16px 0;
+  padding-left: 18px;
+  border-left: 2px solid #00ed6433;
+  color: #d4e7de;
+}
+.camera-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+}
+.warning {
+  color: #e2c46c;
+  font-size: 0.83rem;
+}
+@media (max-width: 850px) {
+  .integration-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .route-page {
+    padding-top: 28px;
+  }
+}
+@media (max-width: 420px) {
+  .metric-cards strong {
+    font-size: 1.2rem;
+  }
+  .metric-chart {
+    padding: 10px;
+  }
+}

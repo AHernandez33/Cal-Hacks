@@ -1,8 +1,8 @@
 # Updated and new files
 
-Base GitHub commit: `fae5c85530a3bc372bc054c2868322fc2c397e28`.
+Compared with the uploaded project at `fae5c85530a3bc372bc054c2868322fc2c397e28`.
 
-No original vision algorithm, federated training implementation, database binary, or original Fetch demonstration test was replaced. Duplicate frontend scaffolds remain on disk but are excluded from the active app tooling.
+The original vision algorithm, federated training algorithm, uploaded SQLite database and interactive Fetch demonstration test are preserved. New features include private workspace sessions, scoped settings, learning charts, research/mobile/plans pages, integration diagnostics and one-command startup.
 
 | File | Change |
 | --- | --- |
@@ -12,10 +12,14 @@ No original vision algorithm, federated training implementation, database binary
 | `README.md` | Updated |
 | `backend/RAG/retrieve.py` | Updated |
 | `backend/access.py` | New |
+| `backend/accounts.py` | New |
 | `backend/databases.py` | Updated |
+| `backend/federated_api.py` | Updated |
 | `backend/fetch_agent.py` | Updated |
 | `backend/fetch_client.py` | Updated |
 | `backend/fetch_service.py` | Updated |
+| `backend/identity.py` | New |
+| `backend/integrations.py` | New |
 | `backend/main.py` | Updated |
 | `backend/orchestration/__init__.py` | New |
 | `backend/orchestration/agent_registry.py` | New |
@@ -25,21 +29,34 @@ No original vision algorithm, federated training implementation, database binary
 | `backend/orchestration/schemas.py` | New |
 | `backend/privacy.py` | Updated |
 | `backend/tigerdata.py` | Updated |
+| `docs/integrations_setup.md` | New |
 | `docs/telemetry_schema.sql` | New |
 | `docs/updated_files.md` | New |
 | `docs/validation.md` | New |
 | `frontend/.env.example` | New |
+| `frontend/AGENTS.md` | New |
+| `frontend/app/federated/page.tsx` | New |
+| `frontend/app/field/page.tsx` | New |
 | `frontend/app/globals.css` | Updated |
 | `frontend/app/layout.tsx` | Updated |
+| `frontend/app/login/page.tsx` | New |
 | `frontend/app/manifest.ts` | Updated |
 | `frontend/app/offline/page.tsx` | Updated |
 | `frontend/app/page.tsx` | Updated |
+| `frontend/app/plans/page.tsx` | New |
+| `frontend/app/research/page.tsx` | New |
 | `frontend/components/agent_panel.tsx` | Updated |
 | `frontend/components/brand_hero.tsx` | New |
 | `frontend/components/customer_chat.tsx` | Updated |
+| `frontend/components/federated_panel.tsx` | Updated |
+| `frontend/components/integration_status.tsx` | New |
+| `frontend/components/metric_chart.tsx` | New |
+| `frontend/components/mobile_status.tsx` | New |
 | `frontend/components/offline_panel.tsx` | Updated |
 | `frontend/components/privacy_panel.tsx` | Updated |
 | `frontend/components/pwa_register.tsx` | Updated |
+| `frontend/components/research_panel.tsx` | New |
+| `frontend/components/site_nav.tsx` | New |
 | `frontend/components/telemetry_panel.tsx` | Updated |
 | `frontend/components/vision_panel.tsx` | Updated |
 | `frontend/eslint.config.mjs` | Updated |
@@ -54,6 +71,12 @@ No original vision algorithm, federated training implementation, database binary
 | `frontend/tsconfig.json` | Updated |
 | `render.yaml` | New |
 | `requirements.txt` | New |
+| `scripts/check_tiger.py` | New |
+| `scripts/prepare_data.py` | New |
 | `scripts/run_fetch.py` | New |
+| `scripts/run_stack.py` | New |
 | `scripts/setup.sh` | New |
+| `scripts/start_windows.ps1` | New |
 | `tests/test_api.py` | New |
+| `tests/test_integrations.py` | New |
+| `tests/test_workspaces.py` | New |

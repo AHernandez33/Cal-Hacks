@@ -1,4 +1,5 @@
 "use client";
+import MobileStatus from "./mobile_status";
 import { useEffect, useState } from "react";
 import {
   saveObservation,
@@ -8,7 +9,7 @@ import {
   type Observation,
 } from "../lib/offline_storage";
 import { synchronizeQueue } from "../lib/sync_queue";
-import type { VisionResponse } from "../lib/api";
+import { getWorkspaceId, retentionKey, type VisionResponse } from "../lib/api";
 export default function OfflinePanel({
   onAnalyzed,
 }: {
@@ -26,20 +27,31 @@ export default function OfflinePanel({
   }
   useEffect(() => {
     let active = true;
-    listObservations()
-      .then((values) => {
-        if (active) setItems(values);
-      })
-      .catch((e) => {
-        if (active) setMessage(String(e));
-      });
+    const load = () => {
+      const owner = getWorkspaceId();
+      listObservations()
+        .then((values) => {
+          if (active && getWorkspaceId() === owner) setItems(values);
+        })
+        .catch((e) => {
+          if (active) setMessage(String(e));
+        });
+    };
+    const changed = () => {
+      setItems([]);
+      setMessage("");
+      load();
+    };
+    load();
+    window.addEventListener("vigilo-account-change", changed);
     return () => {
       active = false;
+      window.removeEventListener("vigilo-account-change", changed);
     };
   }, []);
   async function save(file: File) {
     try {
-      if (localStorage.getItem("vigilo-retention") !== "true")
+      if (localStorage.getItem(retentionKey()) !== "true")
         throw new Error(
           "Connect in Privacy settings and enable local photo retention before saving. That choice remains available offline.",
         );
@@ -72,6 +84,7 @@ export default function OfflinePanel({
     <section className="panel">
       <p className="eyebrow">Device storage</p>
       <h2>Mobile Field Mode</h2>
+      <MobileStatus />
       <p className="muted">
         Save photos and manage the queue offline. Backend OpenCV and agent
         services require a connection. Sync sends photos for analysis; it does

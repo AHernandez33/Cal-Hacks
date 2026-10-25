@@ -34,8 +34,9 @@ export default function TelemetryPanel() {
       <p className="eyebrow">Environment history</p>
       <h2>Greenhouse telemetry</h2>
       <p className="muted">
-        Live history requires a configured Tiger Data database. Demo data is
-        requested separately.
+        Live history requires a configured Tiger Data database. Workspaces share
+        this installation’s telemetry feed; use non-private demonstration
+        readings. Synthetic data is requested separately.
       </p>
       <div className="actions">
         <button disabled={busy} onClick={() => void load("live")}>

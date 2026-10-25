@@ -4,6 +4,7 @@ import "@fontsource/inter/600.css";
 import "@fontsource/orbitron/400.css";
 import "@fontsource/orbitron/600.css";
 import "./globals.css";
+import SiteNav from "../components/site_nav";
 export const metadata: Metadata = {
   title: "VigiloForge | Secured Crop Detector",
   description: "Smarter Farming. Private by Design.",
@@ -14,7 +15,12 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <div className="container">
+          <SiteNav />
+        </div>
+        {children}
+      </body>
     </html>
   );
 }
