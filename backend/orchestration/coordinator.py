@@ -23,13 +23,15 @@ def coordinate(request: InvestigationRequest) -> dict:
         from backend.creao_api import start_investigation
 
         run = start_investigation(
-            context["agent_payload"], explicit_authorization=request.authorize_external
+            context["agent_payload"], explicit_authorization=request.authorize_external, role=request.creao_role
         )
         databases.remember_creao_run(run["run_id"])
+        databases.remember_creao_role(run["run_id"], request.creao_role)
         result.update(
             provider="creao",
             status=run["status"],
             run_id=run["run_id"],
+            role=request.creao_role,
             external_request_sent=True,
         )
         result["stages"].append(

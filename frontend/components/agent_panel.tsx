@@ -1,11 +1,13 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   requestJSON,
   fetchInvestigation,
   type VisionResponse,
 } from "../lib/api";
+const roles = ["coordinator", "crop_investigator", "leaf_analyst", "reference_retriever", "response_advisor", "trend_analyst", "privacy_reviewer", "telemetry_analyst", "visitor_guide"] as const;
+type HostedRun = { role: string; status: string; run_id?: string; result?: unknown; error?: string; notice?: string };
 type Report = {
   provider: string;
   status: string;
@@ -30,6 +32,32 @@ export default function AgentPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [report, setReport] = useState<Report | null>(null);
+  const [role, setRole] = useState("coordinator");
+  const [runs, setRuns] = useState<HostedRun[]>([]);
+  const [pollUntil, setPollUntil] = useState(0);
+  async function checkRuns() {
+    await Promise.all(runs.filter(r => r.run_id && !["completed", "failed", "cancelled"].includes(r.status)).map(async r => {
+      try {
+        const update = await requestJSON<HostedRun>(`/agents/creao/${encodeURIComponent(r.run_id!)}`);
+        setRuns(previous => previous.map(item => item.run_id === r.run_id ? {...item, ...update, error: update.error} : item));
+      } catch (e) {
+        setRuns(previous => previous.map(item => item.run_id === r.run_id ? {...item, error: String(e)} : item));
+      }
+    }));
+  }
+  useEffect(() => {
+    if (!pollUntil || Date.now() >= pollUntil || !runs.some(r => r.run_id && !["completed", "failed", "cancelled"].includes(r.status))) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const pending = runs.filter(r => r.run_id && !["completed", "failed", "cancelled"].includes(r.status));
+      const updates = await Promise.all(pending.map(async r => {
+        try { return {...r, ...await requestJSON<HostedRun>(`/agents/creao/${encodeURIComponent(r.run_id!)}`), error: undefined}; }
+        catch(e) { return {...r, error: String(e)}; }
+      }));
+      if (!cancelled) setRuns(previous => previous.map(r => updates.find(u => u.run_id === r.run_id) || r));
+    }, 3000);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [runs, pollUntil]);
   const ready = !!vision?.features;
   const external = provider !== "local";
   async function investigate() {
@@ -38,6 +66,22 @@ export default function AgentPanel({
     setError("");
     setReport(null);
     try {
+      if (provider === "creao") {
+        const selected = role === "all" ? roles : [role];
+        setRuns(selected.map(role => ({role, status: "submitting"})));
+        await Promise.all(selected.map(async selectedRole => {
+          let run: HostedRun;
+          try {
+            run = await requestJSON<HostedRun>("/agents/analyze", {
+              method: "POST", headers: {"Content-Type": "application/json"},
+              body: JSON.stringify({features: vision.features, anomaly_score: vision.anomaly_score, crop_category: crop, provider: "creao", creao_role: selectedRole, authorize_external: consent}),
+            });
+          } catch(e) { run = {role: selectedRole, status: "failed", error: String(e)}; }
+          setRuns(previous => previous.map(item => item.role === selectedRole ? {...run, role: selectedRole} : item));
+        }));
+        setPollUntil(Date.now() + 120000);
+        return;
+      }
       const result =
         provider === "fetch"
           ? await fetchInvestigation(
@@ -111,9 +155,16 @@ export default function AgentPanel({
         >
           <option value="local">Local evidence workflow</option>
           <option value="fetch">Fetch.ai agent messaging</option>
-          <option value="creao">Configured CREAO hosted agent</option>
+          <option value="creao">CREAO specialist agents</option>
         </select>
       </label>
+      {provider === "creao" && <label className="field">CREAO agent
+        <select value={role} onChange={e => setRole(e.target.value)}>
+          {roles.map(r => <option key={r} value={r}>{r.replaceAll("_", " ")}</option>)}
+          <option value="all">Run all 9 CREAO agents</option>
+        </select>
+        <span className="muted">Independent hosted runs. Specialists report missing inputs; no live sensor history or visitor data is supplied.</span>
+      </label>}
       {external && (
         <label className="consent">
           <input
@@ -137,6 +188,16 @@ export default function AgentPanel({
           {error}
         </p>
       )}
+      {runs.length > 0 && <div aria-live="polite">
+        {runs.map(r => <article key={r.role}>
+          <h3>{r.role.replaceAll("_", " ")}</h3><p>{r.status}</p>
+          {r.error && <p className="error">{r.error}</p>}
+          {r.notice && <p>{r.notice}</p>}
+          {r.result != null && <pre className="code-result">{typeof r.result === "string" ? r.result : JSON.stringify(r.result, null, 2)}</pre>}
+        </article>)}
+        <button className="secondary" disabled={busy} onClick={() => void checkRuns()}>Check existing hosted runs</button>
+        <p className="muted">Automatic checks stop after two minutes. Manual checks never submit a new run.</p>
+      </div>}
       {report && (
         <div aria-live="polite">
           <p>

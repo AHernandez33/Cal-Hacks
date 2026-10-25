@@ -10,7 +10,6 @@ No images, GPS values or coordinates, or raw farmer records are sent
 
 from __future__ import annotations
 import json
-import os
 import re
 from collections.abc import Mapping
 from typing import Any
@@ -27,24 +26,20 @@ class CreaoConfigurationError(RuntimeError):
 class CreaoAPIError(RuntimeError):
     """The remote CREAO service could not complete an API operation."""
 
-def credentials() -> tuple[str, str]:
-    api_key = os.getenv("creao_api_key", "").strip()
-    app_id = os.getenv("creao_app_id", "").strip()
-    if not api_key or not app_id:
-        raise CreaoConfigurationError(
-            "Set creao_api_key and creao_app_id in the server environment."
-        )
-    return api_key, app_id
+def credentials(role="coordinator") -> tuple[str, str]:
+    from backend.creao_agents import credentials as role_credentials
+    return role_credentials(role)
 
 def api_request(
         method: str,
         path: str,
         *,
         body: dict[str, Any] | None = None,
+        role: str = "coordinator",
         client: httpx.Client | None = None,
 
 ) -> dict[str, Any]:
-    api_key, _ = credentials()
+    api_key, _ = credentials(role)
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Accept": "application/json",
@@ -96,6 +91,7 @@ def start_investigation(
         payload: Mapping[str, Any],
         *,
         explicit_authorization: bool = False,
+        role: str = "coordinator",
         client: httpx.Client | None = None,
 
 ) -> dict[str, Any]:
@@ -108,19 +104,29 @@ def start_investigation(
         payload=payload,
         explicit_authorization=explicit_authorization,
     )
-    _, app_id = credentials()
-    request_body = {
-        "appId": app_id,
-        "inputs": {"prompt": prompt_payload(safe)}
-    }
-    result = api_request("POST", "/runs", body=request_body, client=client)
+    from urllib.parse import quote
+    _, app_id = credentials(role)
+    prompt = prompt_payload(safe) + (
+        "\nYour specialist role is " + role.replace("_", " ") + ". "
+        "Report missing telemetry, history, visitor intent, or privacy decisions explicitly; never invent inputs."
+    )
+    inputs = {"prompt": prompt}
+    if role == "leaf_analyst":
+        inputs = {
+            "measurements": json.dumps(safe.get("features", {})),
+            "observations": prompt,
+            "crop": safe.get("crop_category", ""),
+            "references": json.dumps(safe.get("public_references", [])),
+            "question": "Which further observations could help investigate visible discoloration?",
+        }
+    result = api_request("POST", f"/apps/{quote(app_id, safe='')}/runs", body={"inputs": inputs}, role=role, client=client)
     run_id = result.get("id")
     if not isinstance(run_id, str) or not run_id_pattern.fullmatch(run_id):
         raise CreaoAPIError("CREAO response lacked a valid run id")
-    return {"run_id": run_id, "status": result.get("status", "pending"), "provider": "creao"}
+    return {"run_id": run_id, "status": result.get("status", "pending"), "provider": "creao", "role": role}
 
 def get_investigation(
-        run_id: str, *, client: httpx.Client | None = None
+        run_id: str, *, role: str = "coordinator", client: httpx.Client | None = None
 ) -> dict[str, Any]:
     """Poll a run previously initiated by this backend.
 
@@ -129,13 +135,17 @@ def get_investigation(
     """
     if not isinstance(run_id, str) or not run_id_pattern.fullmatch(run_id):
         raise ValueError("Invalid CREAO run id.")
-    result = api_request("GET", f"/runs/{run_id}", client=client)
-    status = result.get("status", "unknown")
+    result = api_request("GET", f"/runs/{run_id}", role=role, client=client)
+    status = str(result.get("status", "unknown")).lower()
+    status = {"complete": "completed", "succeeded": "completed", "queued": "pending"}.get(status, status)
+    output = next((result[k] for k in ("result", "outputs", "output") if result.get(k) not in (None, "", {}, [])), None)
     return {
         "provider": "creao",
         "run_id": result.get("id", run_id),
         "status": status if status in run_status else "unknown",
-        "result": result.get("result") if status == "completed" else None,
+        "role": role,
+        "result": output if status == "completed" else None,
+        "notice": "Completed without usable output." if status == "completed" and output is None else None,
         "error": "run_failed" if status == "failed" else None,
     }
 

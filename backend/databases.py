@@ -380,3 +380,16 @@ def save_workspace_preferences(values):
             (workspace_id.get(), json.dumps(settings), timestamp),
         )
     return {**settings, "updated_at": timestamp}
+
+
+def remember_creao_role(run_id: str, role: str) -> None:
+    with connection() as db:
+        db.execute("CREATE TABLE IF NOT EXISTS creao_run_roles (owner_id TEXT, run_id TEXT, role TEXT NOT NULL, PRIMARY KEY(owner_id, run_id))")
+        db.execute("INSERT OR IGNORE INTO creao_run_roles VALUES (?, ?, ?)", (workspace_id.get(), run_id, role))
+
+
+def creao_run_role(run_id: str) -> str:
+    with connection() as db:
+        db.execute("CREATE TABLE IF NOT EXISTS creao_run_roles (owner_id TEXT, run_id TEXT, role TEXT NOT NULL, PRIMARY KEY(owner_id, run_id))")
+        row = db.execute("SELECT role FROM creao_run_roles WHERE owner_id=? AND run_id=?", (workspace_id.get(), run_id)).fetchone()
+    return row["role"] if row else "coordinator"

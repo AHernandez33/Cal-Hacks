@@ -159,7 +159,8 @@ export default function VisionPanel({ onAnalyzed }: Props) {
             capture="environment"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) void submit(file);
+              const input = e.currentTarget;
+              if (file) void submit(file).finally(() => { input.value = ""; });
             }}
           />
         </label>

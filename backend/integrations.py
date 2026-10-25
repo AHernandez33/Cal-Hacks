@@ -90,14 +90,15 @@ async def fetch_status():
 
 
 async def integration_status():
+    from backend.creao_agents import configured_roles
+    agents = configured_roles()
     return {
         "fetch": await fetch_status(),
         "creao": {
-            "configured": bool(
-                os.getenv("creao_api_key") and os.getenv("creao_app_id")
-            ),
+            "configured": any(agent["configured"] for agent in agents),
+            "agents": agents,
             "verified": False,
-            "message": "Hosted LLM integration is outside this update; configured does not mean tested.",
+            "message": "Configuration does not establish a completed hosted run.",
         },
         "tiger_data": {
             "configured": bool(os.getenv("TIGER_DATABASE_URL")),

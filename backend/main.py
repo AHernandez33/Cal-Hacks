@@ -193,7 +193,7 @@ def creao_result(run_id: str):
     if not privacy.get_settings()["external_services_enabled"]:
         raise HTTPException(403, "External services are disabled.")
     try:
-        return get_investigation(run_id)
+        return get_investigation(run_id, role=databases.creao_run_role(run_id))
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     except CreaoConfigurationError as exc:
@@ -290,3 +290,9 @@ async def private_api_responses(request, call_next):
     response = await call_next(request)
     response.headers["Cache-Control"] = "no-store"
     return response
+
+
+@app.get("/agents/creao")
+def creao_agents():
+    from backend.creao_agents import configured_roles
+    return {"agents": configured_roles()}
