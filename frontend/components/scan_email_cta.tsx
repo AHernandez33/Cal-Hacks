@@ -32,7 +32,7 @@ export default function ScanEmailCTA({ result }: { result: VisionResponse }) {
  return <section className="scan-cta" aria-label="Email your crop results">
    <p className="eyebrow">Your crop scan is complete</p>
    <h3>Your crop insights shouldn't stop here.</h3>
-   <p>See your observations above. Receive a numerical summary in your inbox, and explore the planned Free tier with up to 10 daily scans when account quotas launch.</p>
+   <p>Your detailed numerical scan results are ready to email. Enter your address below to receive yellow-area, brown-area, visible-discoloration, and leaf-coverage measurements. The proposed 10-free-scans tier is not active yet.</p>
    {!signedIn && <p className="warning">To prevent unwanted email, sign in with your private workspace first. Email/password registration and automatic free-tier unlock are not enabled yet. <Link href="/login">Open workspace sign in</Link></p>}
    <form onSubmit={e=>void send(e)}>
      <label className="field">Email address
@@ -43,11 +43,11 @@ export default function ScanEmailCTA({ result }: { result: VisionResponse }) {
        I agree to receive this one crop observation report by email. No photograph will be emailed.
      </label>
      <div className="actions">
-       <button type="submit" disabled={busy || sent || !consent || !signedIn}>{busy?"Sending…":sent?"Report submitted":"Email my crop results"}</button>
+       <button type="submit" disabled={busy || sent || !consent || !signedIn}>{busy?"Sending…":sent?"Email accepted":"Email my crop results"}</button>
        <Link href="/plans" className="button secondary">Explore Free, Gold & Platinum</Link>
      </div>
      <p role="status" className={sent?"muted":"warning"}>{message}</p>
    </form>
-   <p className="muted">No marketing signup is created. SMTP delivery requires server setup. Results remain visible without providing an email.</p>
+   <p className="muted">No marketing signup is created. SMTP delivery requires server setup. Emailing is optional; the scan completion notice and image heatmap remain visible without an email. Your numeric report is sent only when you request it.</p>
  </section>;
 }
