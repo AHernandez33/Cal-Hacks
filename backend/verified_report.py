@@ -82,11 +82,10 @@ def start(req: StartRequest, request: Request):
     now = int(time.time())
     ip = request.client.host if request.client else "unknown"
     ip_digest = digest(ip, cfg[4])
-    email_digest = digest(email.lower(), cfg[4])
     with databases.connection() as db:
         recent = db.execute("""SELECT COUNT(*) FROM verified_report_requests
-            WHERE (ip_digest=? OR code_digest LIKE ?) AND created_at>?""",
-            (ip_digest, "never-match", now - 86400)).fetchone()[0]
+            WHERE ip_digest=? AND created_at>?""",
+            (ip_digest, now - 86400)).fetchone()[0]
         email_recent = db.execute("""SELECT COUNT(*) FROM verified_report_requests
             WHERE email=? AND created_at>?""", (email, now - 86400)).fetchone()[0]
         if recent >= 5 or email_recent >= 3:
