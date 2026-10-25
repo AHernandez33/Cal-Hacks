@@ -4,9 +4,14 @@ import smtplib
 import ssl
 from datetime import datetime, timezone
 from email.message import EmailMessage
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, StrictBool
+from pydantic import BaseModel, ConfigDict, Field, StrictBool
 from backend import databases
 from backend.identity import workspace_id
 
@@ -79,9 +84,12 @@ def email_report(req: ReportRequest):
             smtp.login(username, password)
             smtp.send_message(message)
     except (OSError, smtplib.SMTPException, ValueError) as exc:
-        # Retain reserved slot to prevent retry abuse until a controlled retry mechanism exists.
-        raise HTTPException(502, "Email could not be delivered. Please try again tomorrow or contact support.") from exc
+        # Release the reserved slot when the provider did not confirm acceptance.
+        # A production email queue should use idempotency and delivery tracking.
+        with databases.connection() as db:
+            db.execute("DELETE FROM report_email_limits WHERE owner_id=? AND day=? AND last_sent_at IS NULL", (owner, today))
+        raise HTTPException(502, "The email provider did not accept the report. Check SMTP settings and retry.") from exc
     with databases.connection() as db:
         db.execute("UPDATE report_email_limits SET last_sent_at=? WHERE owner_id=? AND day=?",
                    (datetime.now(timezone.utc).isoformat(), owner, today))
-    return {"sent": True, "message": "Report submitted to your email provider."}
+    return {"sent": True, "message": "Your crop report was accepted by the email provider. Check your inbox and spam folder."}
