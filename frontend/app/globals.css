@@ -1035,3 +1035,39 @@ blockquote {
 @media (prefers-reduced-motion: reduce) {
   .launch-intro { display: none; }
 }
+
+
+/* The original PNG has its own black background: visually merge it with the page.
+   Do not draw a bordered placeholder around the image. */
+.logo-stage {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+  margin: 18px 0 32px;
+}
+.logo-stage::before,
+.logo-stage-line {
+  display: none;
+}
+.logo-stage .brand-banner {
+  mix-blend-mode: screen;
+  background: transparent;
+}
+.logo-stage-pending {
+  min-height: 0;
+  display: block;
+}
+.logo-stage-pending .logo-notice {
+  margin: 0 0 20px;
+  text-align: left;
+}
+.launch-emblem {
+  max-width: min(90vw, 720px);
+}
+.launch-emblem img {
+  border: 0;
+  outline: none;
+  background: transparent;
+}
