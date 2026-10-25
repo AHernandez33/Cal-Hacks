@@ -18,7 +18,7 @@ Never send credentials in chat or commit them to Git. Supply them through the lo
 5. Put the role's PostgreSQL connection string in `TIGER_DATABASE_URL`. Use the provider's hostname, port, database, and read-only credentials. The adapter enforces `sslmode=verify-full`; install/configure the provider's CA certificate using PostgreSQL's supported trust configuration when needed. Do not disable certificate verification.
 6. Ensure the machine hosting FastAPI can reach that PostgreSQL host/port. An HTTPS-only proxy does not carry PostgreSQL sessions. Restrict network access using your provider's available controls.
 7. From the project root run `.venv/bin/python scripts/check_tiger.py` (Windows: `.\.venv\Scripts\python.exe scripts/check_tiger.py`). It prints only a successful record count or a sanitized error.
-8. In the dashboard choose **Load database history**. A successful query with rows is the real validation. **View synthetic demo** does not validate the connection.
+8. The dashboard telemetry panel has been removed. Use `scripts/check_tiger.py` or an authorized `/telemetry/history` API request for optional database checks. A successful query with rows is the real validation; synthetic demo values do not validate the connection.
 
 The current telemetry feed belongs to the installation and is shared with authorized workspaces. There is no per-farm telemetry authorization or tenant partitioning. Use a non-private demonstration dataset and trusted pilot accounts; a multi-farm product needs per-owner rows and query authorization.
 
@@ -43,7 +43,7 @@ See [final_agents.md](final_agents.md) for role names, secure configuration, che
 
 The adapter starts `POST https://agent.creao.ai/api/v1/apps/APP_ID/runs` with `{"inputs": {...}}` and polls `GET /api/v1/runs/RUN_ID` using that role's matching key. Leaf analyst uses measurements/observations/crop/references/question. Other roles use prompt. Separate hosted runs are independent; they are not a chained coordinator execution.
 
-Enable saved external-service permission, analyze an image, select a specialist or all nine, and explicitly authorize the request. The dashboard displays individual failures and polls for up to two minutes. A manual check only retrieves existing runs. Complete output is read from result, outputs, or output. An immediate completed response is also displayed. Completed-without-output is reported explicitly.
+Analyze an image, select a specialist or all nine, enable **Allow external agent services for this workspace** in the agent panel, and check the separate request authorization. The toggle saves only that workspace’s external-service setting. The panel checks the setting again before submitting a batch. The dashboard displays individual failures and polls for up to two minutes. A manual check only retrieves existing runs. Complete output is read from result, outputs, or output. An immediate completed response is also displayed. Completed-without-output is reported explicitly.
 
 This implementation was verified with mocked CREAO responses, not live keys. Verify each app's completed run with the credentials stored on your Windows machine or hosting provider. Acceptance alone is insufficient. Do not send private farm data or invent absent sensor readings, history, or visitor intent. Revoke the previously exposed key in the CREAO console; cloud code cannot verify account-side revocation.
 

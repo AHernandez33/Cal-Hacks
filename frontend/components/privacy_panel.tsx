@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   setAccessToken,
   retentionKey,
@@ -19,6 +19,24 @@ export default function PrivacyPanel() {
   const [token, setToken] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let active = true;
+    let revision = 0;
+    const refresh = () => {
+      const requested = ++revision;
+      requestJSON<PrivacySettings>("/privacy/settings").then(value => {
+        if (active && requested === revision) { setSettings(value); setMessage("Preferences updated."); }
+      }).catch(() => { if (active && requested === revision) setSettings(null); });
+    };
+    const accountChanged = () => { revision += 1; setSettings(null); setMessage(""); };
+    window.addEventListener("vigilo-privacy-change", refresh);
+    window.addEventListener("vigilo-account-change", accountChanged);
+    return () => {
+      active = false;
+      window.removeEventListener("vigilo-privacy-change", refresh);
+      window.removeEventListener("vigilo-account-change", accountChanged);
+    };
+  }, []);
   async function connect() {
     setBusy(true);
     setMessage("");

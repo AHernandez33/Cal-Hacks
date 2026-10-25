@@ -80,3 +80,10 @@ The supplied Windows log showed successful HTTP 200 frontend responses followed 
 Recovered the original logo PNG, branded split-door entrance animation and motion styles, and interactive six-greenhouse page from `feature/launch-experience-2026` at 4480ab1. Combined them with the delivery branch's existing camera, nine-agent, startup, and Render fixes. Restored Free/Gold/Platinum plan cards as proposed subscriptions while retaining regular scanning without the abandoned email gate. No live billing or paid entitlement was added.
 
 TypeScript, ESLint, and production build passed, including the new `/greenhouses` route. Chromium verified the entrance animation and loaded logo, all six scenario selections and the comparison calculator, all three subscription cards, the retained nine-agent selector, no horizontal overflow at 390px on dashboard/greenhouses/plans, reduced-motion behavior, and no page JavaScript errors. The production API authorization and genuine Fetch request/response checks also passed. Existing camera and agent source were preserved.
+
+
+## Camera label, telemetry removal, and nine-agent permission flow
+
+The section heading is now exactly **Camera**, with generic OpenCV description text. Removed dashboard telemetry rendering and its Tiger Data connection card, and removed the stale greenhouse-page link to that panel. Six synthetic greenhouse scenarios and the nine specialist roles remain.
+
+TypeScript, ESLint, production build, and 37 relevant backend tests passed (API 17, CREAO 8, workspaces 12). Chromium exercised saved external permission off by default, a disabled batch action with zero submissions, explicit inline permission saving, nine distinct completed CREAO responses, synchronization with Privacy controls, and revocation in another tab caught before any batch start. The same workflow ran in a separate authenticated workspace without enabling the local demo's permission. Training and photo-sync preferences stayed off. No page JavaScript errors occurred. CREAO responses were mocked; live hosted runs still require the user's authorized provider credentials.

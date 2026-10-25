@@ -5,6 +5,7 @@ import {
   requestJSON,
   fetchInvestigation,
   type VisionResponse,
+  type PrivacySettings,
 } from "../lib/api";
 const roles = ["coordinator", "crop_investigator", "leaf_analyst", "reference_retriever", "response_advisor", "trend_analyst", "privacy_reviewer", "telemetry_analyst", "visitor_guide"] as const;
 type HostedRun = { role: string; status: string; run_id?: string; result?: unknown; error?: string; notice?: string };
@@ -29,6 +30,9 @@ export default function AgentPanel({
   const [crop, setCrop] = useState("Tomato");
   const [provider, setProvider] = useState("local");
   const [consent, setConsent] = useState(false);
+  const [servicesEnabled, setServicesEnabled] = useState<boolean | null>(null);
+  const [permissionBusy, setPermissionBusy] = useState(false);
+  const [permissionError, setPermissionError] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [report, setReport] = useState<Report | null>(null);
@@ -43,6 +47,9 @@ export default function AgentPanel({
       setReport(null);
       setError("");
       setConsent(false);
+      setServicesEnabled(null);
+      setPermissionError("");
+      setPermissionBusy(false);
       setPollUntil(0);
       setBusy(false);
     };
@@ -52,6 +59,55 @@ export default function AgentPanel({
       window.removeEventListener("vigilo-account-change", clear);
     };
   }, []);
+  useEffect(() => {
+    if (provider === "local") return;
+    let active = true;
+    let revision = 0;
+    const load = () => {
+      const current = generation.current;
+      const requested = ++revision;
+      requestJSON<PrivacySettings>("/privacy/settings").then(settings => {
+        if (active && current === generation.current && requested === revision) { setServicesEnabled(settings.external_services_enabled); setPermissionError(""); }
+      }).catch(e => {
+        if (active && current === generation.current && requested === revision) { setServicesEnabled(null); setPermissionError(String(e)); }
+      });
+    };
+    load();
+    window.addEventListener("vigilo-privacy-change", load);
+    window.addEventListener("vigilo-account-change", load);
+    return () => {
+      active = false;
+      window.removeEventListener("vigilo-privacy-change", load);
+      window.removeEventListener("vigilo-account-change", load);
+    };
+  }, [provider]);
+  async function saveExternalPermission(enabled: boolean) {
+    const current = generation.current;
+    const before = servicesEnabled;
+    setServicesEnabled(enabled);
+    setPermissionBusy(true);
+    setPermissionError("");
+    try {
+      const settings = await requestJSON<PrivacySettings>("/privacy/settings", {
+        method: "PUT", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({external_services_enabled: enabled}),
+      });
+      if (current !== generation.current) return;
+      setServicesEnabled(settings.external_services_enabled);
+      setError("");
+      window.dispatchEvent(new Event("vigilo-privacy-change"));
+    } catch(e) {
+      if (current === generation.current) { setServicesEnabled(before); setPermissionError(String(e)); }
+    } finally {
+      if (current === generation.current) setPermissionBusy(false);
+    }
+  }
+  function agentError(value: unknown) {
+    const message = String(value);
+    return message.includes("external_services_disabled")
+      ? "External services are off for this workspace. Enable them above and authorize the request before running agents."
+      : message;
+  }
   async function checkRuns() {
     const current = generation.current;
     await Promise.all(runs.filter(r => r.run_id && !["completed", "failed", "cancelled"].includes(r.status)).map(async r => {
@@ -59,7 +115,7 @@ export default function AgentPanel({
         const update = await requestJSON<HostedRun>(`/agents/creao/${encodeURIComponent(r.run_id!)}`);
         if (generation.current === current) setRuns(previous => previous.map(item => item.run_id === r.run_id ? {...item, ...update} : item));
       } catch (e) {
-        if (generation.current === current) setRuns(previous => previous.map(item => item.run_id === r.run_id ? {...item, error: String(e)} : item));
+        if (generation.current === current) setRuns(previous => previous.map(item => item.run_id === r.run_id ? {...item, error: agentError(e)} : item));
       }
     }));
   }
@@ -70,7 +126,7 @@ export default function AgentPanel({
       const pending = runs.filter(r => r.run_id && !["completed", "failed", "cancelled"].includes(r.status));
       const updates = await Promise.all(pending.map(async r => {
         try { return {...r, ...await requestJSON<HostedRun>(`/agents/creao/${encodeURIComponent(r.run_id!)}`)}; }
-        catch(e) { return {...r, error: String(e)}; }
+        catch(e) { return {...r, error: agentError(e)}; }
       }));
       if (!cancelled) setRuns(previous => previous.map(r => updates.find(u => u.run_id === r.run_id) || r));
     }, 3000);
@@ -87,6 +143,14 @@ export default function AgentPanel({
     setError("");
     setReport(null);
     try {
+      if (external) {
+        if (!consent) throw new Error("Authorize this request before running external agents.");
+        const settings = await requestJSON<PrivacySettings>("/privacy/settings");
+        if (generation.current !== current) return;
+        setServicesEnabled(settings.external_services_enabled);
+        if (!settings.external_services_enabled)
+          throw new Error("External services are off for this workspace. Enable them above, then run your investigation again.");
+      }
       if (provider === "creao") {
         const selected = role === "all" ? roles : [role];
         setRuns(selected.map(role => ({role, status: "submitting"})));
@@ -97,7 +161,7 @@ export default function AgentPanel({
               method: "POST", headers: {"Content-Type": "application/json"},
               body: JSON.stringify({features: vision.features, anomaly_score: vision.anomaly_score, crop_category: crop, provider: "creao", creao_role: selectedRole, authorize_external: consent}),
             });
-          } catch(e) { run = {role: selectedRole, status: "failed", error: String(e)}; }
+          } catch(e) { run = {role: selectedRole, status: "failed", error: agentError(e)}; }
           if (generation.current === current) setRuns(previous => previous.map(item => item.role === selectedRole ? {...run, role: selectedRole} : item));
         }));
         if (generation.current === current) setPollUntil(Date.now() + 120000);
@@ -124,7 +188,7 @@ export default function AgentPanel({
             });
       if (generation.current === current) setReport(result as Report);
     } catch (e) {
-      if (generation.current === current) setError(String(e));
+      if (generation.current === current) setError(agentError(e));
     } finally {
       if (generation.current === current) setBusy(false);
     }
@@ -139,7 +203,7 @@ export default function AgentPanel({
       );
       setReport({ ...report, ...result });
     } catch (e) {
-      setError(String(e));
+      setError(agentError(e));
     } finally {
       setBusy(false);
     }
@@ -173,6 +237,8 @@ export default function AgentPanel({
           onChange={(e) => {
             setProvider(e.target.value);
             setConsent(false);
+            setServicesEnabled(null);
+            setPermissionError("");
           }}
         >
           <option value="local">Local evidence workflow</option>
@@ -187,22 +253,31 @@ export default function AgentPanel({
         </select>
         <span className="muted">Independent hosted runs. Specialists report missing inputs; no live sensor history or visitor data is supplied.</span>
       </label>}
-      {external && (
+      {external && <div>
         <label className="consent">
-          <input
-            type="checkbox"
-            checked={consent}
-            onChange={(e) => setConsent(e.target.checked)}
-          />
-          I authorize this request to the selected agent service. Saved
-          external-service permission must also be enabled.
+          <input type="checkbox" checked={servicesEnabled === true}
+            disabled={busy || permissionBusy || servicesEnabled === null}
+            onChange={event => void saveExternalPermission(event.target.checked)} />
+          Allow external agent services for this workspace
         </label>
-      )}
+        <p className="muted" role="status">
+          {permissionBusy ? "Saving permission…" : servicesEnabled === null
+            ? "Checking this workspace’s saved permission…" : servicesEnabled
+            ? "External services enabled. Authorize the request below to continue."
+            : "External services are off. Enable the workspace permission above to run CREAO or Fetch agents."}
+        </p>
+        {permissionError && <p className="error" role="alert">{permissionError}</p>}
+        <label className="consent">
+          <input type="checkbox" checked={consent} disabled={busy || permissionBusy}
+            onChange={event => setConsent(event.target.checked)} />
+          I authorize this request to the selected agent service.
+        </label>
+      </div>}
       <button
-        disabled={!ready || busy || (external && !consent)}
+        disabled={!ready || busy || permissionBusy || (external && (!consent || servicesEnabled !== true))}
         onClick={() => void investigate()}
       >
-        {busy ? "Working…" : "Request investigation"}
+        {busy ? "Working…" : provider === "creao" && role === "all" ? "Run all 9 CREAO agents" : "Request investigation"}
       </button>
       {!ready && <p className="muted">Analyze a leaf image first.</p>}
       {error && (

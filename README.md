@@ -57,7 +57,7 @@ On Windows, replace `.venv/bin/python` with `.\.venv\Scripts\python.exe`.
 
 | Page | Purpose |
 | --- | --- |
-| `/` | Image upload/camera, numerical observations, explained heatmap, consented investigation, privacy controls, telemetry, integration diagnostics |
+| `/` | Image upload/camera, numerical observations, explained heatmap, consented investigation, privacy controls, integration diagnostics |
 | `/federated` | Three explicitly simulated clients, real ten-round training charts, model architecture, metric definitions, local-only comparison |
 | `/research` | Search the actual SQLite FTS5 index, inspect passage counts and source links; no LLM answer |
 | `/field` | Mobile photo storage, queue, explicit synchronization, installation guidance |

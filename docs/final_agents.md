@@ -46,3 +46,12 @@ The `scroll-behavior: smooth` development warning is resolved by the matching da
 ## Combined launch interface
 
 The delivery branch also includes the recovered original logo and entrance animation, Six greenhouse scenarios navigation/page, and Free/Gold/Platinum subscription proposal cards. Use `feature/nine-agent-delivery` to receive both this interface and the camera/agent fixes. The six scenarios are fabricated educational examples, separate from the three-client federated simulation. Regular scans have no email gate, and subscriptions are not active paid products.
+
+
+## External-services permission before agent runs
+
+The camera section is labeled **Camera** and the dashboard greenhouse telemetry panel has been removed. Keep the six-scenario research page separate from live telemetry.
+
+For CREAO or Fetch, select the provider in the agent panel and enable **Allow external agent services for this workspace**. Wait for the saved-permission confirmation, then check **I authorize this request to the selected agent service** and run the investigation. For all specialists, select **Run all 9 CREAO agents**. The inline setting and Privacy controls stay synchronized; workspace changes clear the request authorization. Training and photo synchronization remain separate opt-ins.
+
+`external_services_disabled` means the app's saved permission is off, not that CREAO rejected a key. The UI now prevents submission while it is off and rechecks it once before starting a batch. A setting revoked in another tab is reported once before any of the nine starts. Actual provider errors and missing credentials still appear per agent.

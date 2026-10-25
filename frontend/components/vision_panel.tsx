@@ -121,9 +121,9 @@ export default function VisionPanel({ onAnalyzed }: Props) {
   }
   return (
     <section className="panel">
-      <h2>Leaf imaging</h2>
+      <h2>Camera</h2>
       <p className="muted">
-        NexiGo or any browser-accessible webcam. OpenCV reports heuristic
+        OpenCV reports heuristic
         observations, not a validated disease diagnosis.
       </p>
       <div className="camera-controls">

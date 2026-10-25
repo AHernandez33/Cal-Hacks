@@ -53,15 +53,6 @@ export default function IntegrationStatus() {
             <p className="muted">{status.fetch.message}</p>
           </article>
           <article>
-            <h3>Tiger Data</h3>
-            <p>
-              {status.tiger_data.configured
-                ? "Connection configured · not yet verified"
-                : "Not configured"}
-            </p>
-            <p className="muted">{status.tiger_data.message}</p>
-          </article>
-          <article>
             <h3>CREAO</h3>
             <p>
               {status.creao.configured

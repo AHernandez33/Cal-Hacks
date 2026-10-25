@@ -7,7 +7,6 @@ import VisionPanel from "../components/vision_panel";
 import AgentPanel from "../components/agent_panel";
 import PrivacyPanel from "../components/privacy_panel";
 import FederatedPanel from "../components/federated_panel";
-import TelemetryPanel from "../components/telemetry_panel";
 import OfflinePanel from "../components/offline_panel";
 import CustomerChat from "../components/customer_chat";
 import PWARegister from "../components/pwa_register";
@@ -66,7 +65,6 @@ export default function HomePage() {
             <Link href="/federated">Open the learning models page →</Link>
           </p>
           <FederatedPanel />
-          <TelemetryPanel />
         </div>
       </div>
       <IntegrationStatus />
