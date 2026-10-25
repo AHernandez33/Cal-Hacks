@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import AgentReport from "./agent_report";
 import { useEffect, useRef, useState } from "react";
 import {
   requestJSON,
@@ -290,7 +291,7 @@ export default function AgentPanel({
           <h3>{r.role.replaceAll("_", " ")}</h3><p>{r.status}</p>
           {r.error && <p className="error">{r.error}</p>}
           {r.notice && <p>{r.notice}</p>}
-          {r.result != null && <pre className="code-result">{typeof r.result === "string" ? r.result : JSON.stringify(r.result, null, 2)}</pre>}
+          {r.result != null && <AgentReport value={r.result} />}
         </article>)}
         <button className="secondary" disabled={busy} onClick={() => void checkRuns()}>Check existing hosted runs</button>
         <p className="muted">Automatic checks stop after two minutes. Manual checks never submit a new run.</p>
@@ -365,9 +366,7 @@ export default function AgentPanel({
             </button>
           )}
           {report.result != null && (
-            <pre className="code-result">
-              {JSON.stringify(report.result, null, 2)}
-            </pre>
+            <AgentReport value={report.result} />
           )}
         </div>
       )}

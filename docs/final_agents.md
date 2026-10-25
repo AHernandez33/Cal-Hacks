@@ -55,3 +55,8 @@ The camera section is labeled **Camera** and the dashboard greenhouse telemetry 
 For CREAO or Fetch, select the provider in the agent panel and enable **Allow external agent services for this workspace**. Wait for the saved-permission confirmation, then check **I authorize this request to the selected agent service** and run the investigation. For all specialists, select **Run all 9 CREAO agents**. The inline setting and Privacy controls stay synchronized; workspace changes clear the request authorization. Training and photo synchronization remain separate opt-ins.
 
 `external_services_disabled` means the app's saved permission is off, not that CREAO rejected a key. The UI now prevents submission while it is off and rechecks it once before starting a batch. A setting revoked in another tab is reported once before any of the nine starts. Actual provider errors and missing credentials still appear per agent.
+
+
+## Readable agent reports
+
+All nine hosted agent results are displayed as normal headings, paragraphs, and lists. The renderer decodes JSON nested inside text/output fields, repeated JSON string encoding, and fenced JSON alongside Markdown. Field names such as primary_cause become readable labels. Markdown headings, lists, emphasis, and HTTPS/HTTP links are formatted without rendering provider-supplied HTML. Numeric values, uncertainty, and missing-input statements are preserved. The result no longer uses a fixed-height raw-JSON code box.
