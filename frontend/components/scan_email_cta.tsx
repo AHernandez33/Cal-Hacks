@@ -26,7 +26,12 @@ export default function ScanEmailCTA({ result }: { result: VisionResponse }) {
        })
      });
      setSent(reply.sent);setMessage(reply.message);
-   } catch(err) {setMessage(err instanceof Error?err.message:"Could not send report");}
+   } catch(err) {
+     const detail=err instanceof Error?err.message:"Could not send report";
+     setMessage(detail.startsWith("404:")
+       ? "Email route not found on the API server. Restart FastAPI from VigiloForge-CLEAN, check /openapi.json for /reports/email, and verify NEXT_PUBLIC_API_URL points to that server."
+       : detail);
+   }
    finally {setBusy(false);}
  }
  return <section className="scan-cta" aria-label="Email your crop results">
