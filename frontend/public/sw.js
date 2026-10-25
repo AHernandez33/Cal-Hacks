@@ -1,5 +1,5 @@
 // Cache public app assets only. API responses, photos, and tokens are never cached.
-const CACHE = "vigiloforge-shell-v2";
+const CACHE = "vigiloforge-shell-v3";
 const SHELL = [
   "/",
   "/offline",
