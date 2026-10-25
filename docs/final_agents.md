@@ -34,3 +34,10 @@ The root Render Blueprint now deploys the entire app in one Docker service, incl
 ## Delivery validation
 
 Rebuilt from main because handoff commit bf0da1f and its artifacts were unavailable. The terminating backend suites now contain 47 tests. TypeScript, ESLint, production build, real browser flows, and launcher lifecycle checks are recorded in `docs/validation.md`. Hosted CREAO responses use mocks because real keys are only on the user's computer; genuine local Fetch is exercised separately. Native Windows execution and public deployment remain unverified.
+
+
+## Browser connection refused after Ctrl+C
+
+A `GET / 200` line means Next.js served the page. Pressing Ctrl+C stops that foreground server; a later browser request then receives connection refused. The Windows startup script opens the browser after service readiness automatically. Keep that terminal open while using the app. From the root run `powershell -ExecutionPolicy Bypass -File .\scripts\start_windows.ps1`; no dependency reinstall is needed for this change. Direct Python startup can also open the browser with `scripts/run_stack.py --open-browser`.
+
+The `scroll-behavior: smooth` development warning is resolved by the matching data attribute on the HTML element; it was unrelated to the refused connection.

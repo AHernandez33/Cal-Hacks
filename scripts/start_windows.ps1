@@ -49,4 +49,4 @@ if ($Install -or $RepairFrontend) {
     } finally { Pop-Location }
 }
 Invoke-Checked { & $python scripts/prepare_data.py }
-Invoke-Checked { & $python scripts/run_stack.py }
+Invoke-Checked { & $python scripts/run_stack.py --open-browser }

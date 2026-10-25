@@ -9,6 +9,7 @@ import socket
 import subprocess
 import sys
 import time
+import webbrowser
 import httpx
 from dotenv import load_dotenv
 
@@ -27,6 +28,7 @@ def main():
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument("--production", action="store_true", help="Serve the built Next.js app on PORT and proxy /api to the loopback API (Render/Docker).")
     modes.add_argument("--backend-only", action="store_true", help="Supervise API and local Fetch receiver without Node/Next.js (for hosting).")
+    parser.add_argument("--open-browser", action="store_true", help="Open the local app only after all required services are ready. Keep this terminal running.")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
@@ -125,6 +127,14 @@ def main():
                     time.sleep(0.5)
         print("Backend and Fetch receiver are ready." if args.backend_only else f"VigiloForge is ready on port {frontend_port} — keep this terminal open.", flush=True)
         print("Hosted users sign in with a workspace key. For hosted agents, enable external services and authorize the request." if args.production else "Local scans need no email verification. For hosted agents, enable external services and authorize the request.", flush=True)
+        if args.open_browser and not args.backend_only:
+            url = f"http://127.0.0.1:{frontend_port}"
+            try:
+                opened = webbrowser.open(url, new=2)
+            except (webbrowser.Error, OSError):
+                opened = False
+            print(f"Browser opened: {url}" if opened else f"Open {url} in your browser.", flush=True)
+        print("Keep this terminal running while using the app. Ctrl+C closes the app's servers.", flush=True)
         print("Receiver readiness does not prove messaging; run scripts/check_fetch.py for a genuine local exchange. Ctrl+C stops this stack.", flush=True)
         while True:
             for name, child in children:
