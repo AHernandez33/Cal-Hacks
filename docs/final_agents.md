@@ -29,17 +29,7 @@ This refreshes only frontend dependencies with `npm ci`, prepares SQLite, then s
 
 ## Online deployment
 
-No public deployment was performed. The existing Render blueprint provisions a paid API disk. Review the service cost before creating it and select the `feature/nine-agent-delivery` branch while the update is awaiting merge. The blueprint's start command now supervises both FastAPI and the local Fetch receiver, without requiring Node on the backend:
-
-```bash
-python scripts/prepare_data.py && python scripts/run_stack.py --backend-only --host 0.0.0.0 --port "$PORT"
-```
-
-Set FRONTEND_ORIGIN to the deployed frontend HTTPS origin. Keep VIGILO_API_TOKEN and CREAO credentials in Render's secure environment settings. For a deployed Fetch identity, set the same private FETCH_AGENT_SEED for API and receiver (both inherit the service environment). Never fund the public demo seed. The receiver stays behind the backend service; the browser calls the API. The supervisor stops its children on shutdown and fails if a required child exits.
-
-Deploy the frontend from `frontend` with `npx vercel --prod` after setting NEXT_PUBLIC_API_URL to the HTTPS Render API address in Vercel project settings. This command requires your Vercel login/project and triggers deployment; the address must be set before building. Set Render's FRONTEND_ORIGIN to the final frontend origin and redeploy if necessary. Remote users sign in with a workspace key provisioned by the deployment administrator. The admin token must never become NEXT_PUBLIC_* configuration.
-
-Check `/health`, sign in, upload an image, enable external services, and verify a genuine Fetch response and completed CREAO outputs after deployment. Local validation does not prove a hosted service has been deployed or is working.
+The root Render Blueprint now deploys the entire app in one Docker service, including Next.js, FastAPI, and the supervised Fetch receiver. Use [the complete Render deployment guide](deploy_render.md) for the Blueprint steps, paid service/disk requirements, secure agent credentials, administrator setup, workspace sign-in, and HTTPS camera permissions. No Vercel deployment is required for this path. No public Render service has been deployed by the cloud checks.
 
 ## Delivery validation
 

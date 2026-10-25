@@ -3,11 +3,19 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { analyzeImage, type VisionResponse } from "../lib/api";
 
+import { cameraError, captureCameraFrame, waitForCameraFrame } from "../lib/camera";
+
 type Props = { onAnalyzed?: (data: VisionResponse) => void };
 export default function VisionPanel({ onAnalyzed }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const openingRef = useRef<AbortController | null>(null);
+  const generationRef = useRef(0);
+  const workingRef = useRef(false);
+  const snapshotRef = useRef("");
+  const [snapshot, setSnapshot] = useState<{url: string; width: number; height: number} | null>(null);
   const [cameraOn, setCameraOn] = useState(false);
+  const [frameReady, setFrameReady] = useState(false);
   const [starting, setStarting] = useState(false);
   const [facing, setFacing] = useState("environment");
   const [device, setDevice] = useState("");
@@ -16,82 +24,100 @@ export default function VisionPanel({ onAnalyzed }: Props) {
   const [error, setError] = useState("");
   const [result, setResult] = useState<VisionResponse | null>(null);
   function stopCamera() {
-    streamRef.current?.getTracks().forEach((t) => t.stop());
+    generationRef.current += 1;
+    openingRef.current?.abort();
+    openingRef.current = null;
+    streamRef.current?.getTracks().forEach(t => t.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
     setCameraOn(false);
+    setFrameReady(false);
+    setStarting(false);
   }
-  useEffect(
-    () => () => {
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-    },
-    [],
-  );
+  useEffect(() => () => {
+    generationRef.current += 1;
+    openingRef.current?.abort();
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    if (snapshotRef.current) URL.revokeObjectURL(snapshotRef.current);
+  }, []);
   async function startCamera() {
+    stopCamera();
+    const generation = generationRef.current;
+    const controller = new AbortController();
+    openingRef.current = controller;
     setError("");
     setStarting(true);
     try {
-      if (!navigator.mediaDevices?.getUserMedia)
-        throw new Error(
-          "Camera requires localhost or HTTPS and browser camera permissions.",
-        );
+      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia)
+        throw new Error("Open this app on localhost or HTTPS to use the camera, then allow camera permission.");
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: device
-          ? { deviceId: { exact: device } }
-          : { facingMode: { ideal: facing } },
+        video: device ? {deviceId: {exact: device}} : {facingMode: {ideal: facing}},
         audio: false,
       });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+      // Permission prompts can resolve after cancellation or navigation.
+      if (generation !== generationRef.current) {
+        stream.getTracks().forEach(t => t.stop());
+        return;
       }
+      streamRef.current = stream;
+      const video = videoRef.current;
+      if (!video) throw new Error("Camera preview is unavailable. Reopen this page and try again.");
+      video.srcObject = stream;
+      video.muted = true;
+      video.playsInline = true;
       setCameraOn(true);
-      setDevices(
-        (await navigator.mediaDevices.enumerateDevices()).filter(
-          (d) => d.kind === "videoinput",
-        ),
-      );
-    } catch (e) {
-      stopCamera();
-      setError(e instanceof Error ? e.message : "Camera unavailable");
-    } finally {
+      stream.getVideoTracks().forEach(track => track.addEventListener("ended", () => {
+        if (generation === generationRef.current) {
+          stopCamera();
+          setError("The camera disconnected. Reconnect it and start the camera again.");
+        }
+      }, {once: true}));
+      await Promise.all([video.play(), waitForCameraFrame(video, controller.signal)]);
+      if (generation !== generationRef.current) return;
+      setFrameReady(true);
       setStarting(false);
+      // Some browsers restrict device enumeration even when video capture works.
+      try {
+        const available = await navigator.mediaDevices.enumerateDevices();
+        if (generation === generationRef.current) setDevices(available.filter(d => d.kind === "videoinput"));
+      } catch { /* Device names are optional; keep the working camera. */ }
+    } catch (e) {
+      if (generation === generationRef.current) {
+        stopCamera();
+        setError(cameraError(e));
+      }
+    } finally {
+      if (generation === generationRef.current) setStarting(false);
     }
   }
-  async function submit(blob: Blob) {
+  async function analyze(blob: Blob) {
+    const data = await analyzeImage(blob);
+    setResult(data);
+    onAnalyzed?.(data);
+  }
+  async function withBusy(action: () => Promise<void>) {
+    if (workingRef.current) return;
+    workingRef.current = true;
     setBusy(true);
     setError("");
-    try {
-      const data = await analyzeImage(blob);
-      setResult(data);
-      onAnalyzed?.(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Image analysis failed");
-    } finally {
-      setBusy(false);
-    }
+    try { await action(); }
+    catch (e) { setError(e instanceof Error ? e.message : "Image analysis failed."); }
+    finally { workingRef.current = false; setBusy(false); }
+  }
+  async function submit(blob: Blob) {
+    await withBusy(() => analyze(blob));
   }
   async function capture() {
-    const video = videoRef.current;
-    if (!video || !video.videoWidth) {
-      setError("Camera is not ready");
-      return;
-    }
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.drawImage(video, 0, 0);
-    canvas.toBlob(
-      (blob) => {
-        if (blob) void submit(blob);
-        else setError("Could not capture image");
-      },
-      "image/jpeg",
-      0.85,
-    );
+    await withBusy(async () => {
+      const video = videoRef.current;
+      if (!video) throw new Error("Start the camera and wait for its live preview first.");
+      const {blob, width, height} = await captureCameraFrame(video);
+      const url = URL.createObjectURL(blob);
+      if (snapshotRef.current) URL.revokeObjectURL(snapshotRef.current);
+      snapshotRef.current = url;
+      setSnapshot({url, width, height});
+      await analyze(blob);
+    });
   }
   return (
     <section className="panel">
@@ -104,6 +130,7 @@ export default function VisionPanel({ onAnalyzed }: Props) {
         <label className="field">
           Camera direction
           <select
+            disabled={starting || busy}
             value={facing}
             onChange={(e) => {
               stopCamera();
@@ -119,6 +146,7 @@ export default function VisionPanel({ onAnalyzed }: Props) {
           <label className="field">
             Camera device
             <select
+              disabled={starting || busy}
               value={device}
               onChange={(e) => {
                 stopCamera();
@@ -138,16 +166,16 @@ export default function VisionPanel({ onAnalyzed }: Props) {
       <div className="actions">
         <button
           type="button"
-          disabled={starting}
-          onClick={cameraOn ? stopCamera : startCamera}
+          disabled={busy}
+          onClick={cameraOn || starting ? stopCamera : startCamera}
         >
           {starting
-            ? "Opening camera…"
+            ? "Cancel camera"
             : cameraOn
               ? "Stop camera"
               : "Start camera"}
         </button>
-        <button type="button" disabled={!cameraOn || busy} onClick={capture}>
+        <button type="button" disabled={!frameReady || busy || starting} onClick={capture}>
           {busy ? "Analyzing…" : "Capture & analyze"}
         </button>
         <label className="file-label">
@@ -155,6 +183,7 @@ export default function VisionPanel({ onAnalyzed }: Props) {
           <input
             aria-label="Upload leaf photo"
             type="file"
+            disabled={busy || starting}
             accept="image/jpeg,image/png,image/webp"
             capture="environment"
             onChange={(e) => {
@@ -171,8 +200,17 @@ export default function VisionPanel({ onAnalyzed }: Props) {
         muted
         playsInline
         className="camera"
-        style={{ display: cameraOn ? "block" : "none" }}
+        aria-label="Live camera preview"
+        style={{ display: cameraOn || starting ? "block" : "none" }}
       />
+      {starting && <p role="status">Opening camera; waiting for a live picture…</p>}
+      {frameReady && <p role="status">Camera ready. Position the leaf in the preview, then capture.</p>}
+      {snapshot && <div>
+        <h3>Captured photo</h3>
+        <Image unoptimized src={snapshot.url} width={snapshot.width} height={snapshot.height}
+          className="heatmap" alt="Latest captured camera photo" />
+        <a href={snapshot.url} download="vigiloforge-capture.jpg">Download captured photo</a>
+      </div>}
       {error && (
         <p role="alert" className="error">
           {error}

@@ -128,8 +128,8 @@ Do not use unrestricted test discovery: `test_fetch_message.py` is a continuous 
 
 ## Deployment
 
-Review `render.yaml` before provisioning; its persistent disk uses a paid service. Set real HTTPS `FRONTEND_ORIGIN`, keep SQLite on persistent storage, and configure a private administrator token. Do not publish that token as a frontend environment variable. The blueprint supervises FastAPI and the local Fetch receiver using `scripts/run_stack.py --backend-only`. Configure backend credentials and a private Fetch seed securely before deploying.
+Deploy the complete app with the root Render Blueprint: Docker runs Next.js, FastAPI, and the supervised local Fetch receiver behind one HTTPS URL. See [the full Render walkthrough](docs/deploy_render.md). The Standard service and persistent disk are paid; review Render's displayed price before creating them. Backend credentials belong in Render's environment settings, never in frontend `NEXT_PUBLIC_*` variables.
 
-On Vercel use root `frontend`, install `npm ci`, build `npm run build`, and set `NEXT_PUBLIC_API_URL` to the real HTTPS API origin before building. Rebuild after changing it. Verify authenticated requests, CORS, account isolation, privacy persistence and provider connections after deployment. No public Render/Vercel deployment or paid checkout has been performed here.
+Public users sign in with private workspace keys provisioned by the administrator. The production launcher requires a private administrator token to protect loopback API requests behind the frontend proxy. Local development still supports the shared demo without an email gate.
 
-For Windows Next.js native-module EPERM failures, stop this project’s servers first and use `scripts/start_windows.ps1 -RepairFrontend` to repair only frontend dependencies. See [the delivery and deployment guide](docs/final_agents.md).
+Camera capture now waits for decoded video, displays a captured-photo preview/download, and reports blocked permissions or disconnected devices. Physical webcams and phones still need device testing. On Windows, stop existing app terminals before startup. For a Next.js native-module EPERM failure, use `scripts/start_windows.ps1 -RepairFrontend` after releasing the lock. See [the delivery guide](docs/final_agents.md).

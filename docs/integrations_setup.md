@@ -35,7 +35,7 @@ The current telemetry feed belongs to the installation and is shared with author
 
 No Fetch API key is required for this bundled direct local demo. It uses the actual uAgents messaging SDK and local scientific retrieval, not an LLM. Public Agentverse/mailbox registration, discovery, billing, and hosted agents are separate capabilities and are not validated here.
 
-For a remote receiver, configure an HTTPS `FETCH_AGENT_ENDPOINT` and the receiver's actual `fetch_agent_address`, plus supported connectivity from the API. Never use a laptop's loopback address from a hosted Render service. The supplied Render blueprint starts the API and a supervised local receiver using `scripts/run_stack.py --backend-only`. Both share the same server-side environment and SQLite index. Public Agentverse hosting remains separate.
+For a remote receiver, configure an HTTPS `FETCH_AGENT_ENDPOINT` and the receiver's actual `fetch_agent_address`, plus supported connectivity from the API. Never use a laptop's loopback address from a hosted Render service. The supplied Render Blueprint runs Next.js, FastAPI, and the supervised local receiver in one Docker service using `scripts/run_stack.py --production`. API and receiver share the server-side environment and SQLite index. See [the Render guide](deploy_render.md). Public Agentverse hosting remains separate.
 
 ## Nine CREAO specialists
 

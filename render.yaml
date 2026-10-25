@@ -1,21 +1,26 @@
-# Single-grower prototype. A paid persistent disk is required for SQLite state.
+# Entire app on one HTTPS Render service. Standard plan + persistent disk are paid.
 services:
   - type: web
-    name: vigiloforge-api
-    runtime: python
-    plan: starter
-    buildCommand: python -m pip install torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu && python -m pip install -r requirements.txt
-    startCommand: python scripts/prepare_data.py && python scripts/run_stack.py --backend-only --host 0.0.0.0 --port $PORT
-    healthCheckPath: /health
+    name: vigiloforge
+    runtime: docker
+    branch: feature/nine-agent-delivery
+    plan: standard
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.12.14
       - key: SQLITE_DB_PATH
         value: /var/data/vigiloforge.db
       - key: VIGILO_API_TOKEN
         generateValue: true
-      - key: FRONTEND_ORIGIN
-        sync: false
+      - key: FETCH_AGENT_SEED
+        generateValue: true
+      - key: FETCH_MAILBOX
+        value: "false"
+      - key: CREAO_API_VERSION
+        value: v1
+      - key: NEXT_PUBLIC_API_URL
+        value: /api
     disk:
       name: vigiloforge-data
       mountPath: /var/data

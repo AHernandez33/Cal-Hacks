@@ -24,13 +24,28 @@ def port_in_use(port):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--backend-only", action="store_true", help="Supervise API and local Fetch receiver without Node/Next.js (for hosting).")
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument("--production", action="store_true", help="Serve the built Next.js app on PORT and proxy /api to the loopback API (Render/Docker).")
+    modes.add_argument("--backend-only", action="store_true", help="Supervise API and local Fetch receiver without Node/Next.js (for hosting).")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
     if not 1 <= args.port <= 65535 or args.port == 8001 or (not args.backend_only and args.port == 3000):
         parser.error("API port must be valid and distinct from the receiver/frontend ports.")
-    for port in ((args.port, 8001) if args.backend_only else (args.port, 8001, 3000)):
+    try:
+        frontend_port = int(os.getenv("PORT", "10000")) if args.production else 3000
+    except ValueError:
+        parser.error("PORT must be an integer.")
+    if not args.backend_only and (not 1 <= frontend_port <= 65535 or frontend_port in {args.port, 8001}):
+        parser.error("Frontend port must be valid and distinct from the API and receiver ports.")
+    if args.production:
+        if args.port != 8000 or args.host != "127.0.0.1":
+            parser.error("Production /api routing requires the API on 127.0.0.1:8000.")
+        if not os.getenv("VIGILO_API_TOKEN", "").strip():
+            parser.error("Set a private VIGILO_API_TOKEN before public deployment. Proxy requests reach the API over loopback.")
+        if not (root / "frontend/.next/BUILD_ID").is_file():
+            parser.error("Build the frontend with NEXT_PUBLIC_API_URL=/api before production startup.")
+    for port in ((args.port, 8001) if args.backend_only else (args.port, 8001, frontend_port)):
         if port_in_use(port):
             raise SystemExit(
                 f"Port {port} is already in use. Stop the old API/agent/frontend with Ctrl+C, then retry. This script will not stop another application."
@@ -41,11 +56,8 @@ def main():
         raise SystemExit(
             "Frontend dependencies are missing. Run npm ci in frontend first."
         )
-    frontend = (
-        ["cmd.exe", "/d", "/s", "/c", "npm run dev -- --hostname 127.0.0.1"]
-        if os.name == "nt"
-        else ["npm", "run", "dev", "--", "--hostname", "127.0.0.1"]
-    )
+    frontend_command = f"npm run {'start' if args.production else 'dev'} -- --hostname {'0.0.0.0' if args.production else '127.0.0.1'} --port {frontend_port}"
+    frontend = (["cmd.exe", "/d", "/s", "/c", frontend_command] if os.name == "nt" else frontend_command.split())
     commands = [
         (
             "API",
@@ -91,7 +103,7 @@ def main():
             "Fetch receiver": ("http://127.0.0.1:8001/submit", "HEAD", {200, 204, 400, 405}),
         }
         if not args.backend_only:
-            pending["Frontend"] = ("http://127.0.0.1:3000/", "GET", {200})
+            pending["Frontend"] = (f"http://127.0.0.1:{frontend_port}/", "GET", {200})
         deadline = time.monotonic() + 60
         with httpx.Client(timeout=2, trust_env=False) as client:
             while pending:
@@ -111,8 +123,8 @@ def main():
                     if time.monotonic() >= deadline:
                         raise RuntimeError("Startup timed out waiting for: " + ", ".join(pending) + ". Read the service errors above.")
                     time.sleep(0.5)
-        print("Backend and Fetch receiver are ready." if args.backend_only else "VigiloForge is ready at http://127.0.0.1:3000 — keep this terminal open.", flush=True)
-        print("Local scans need no email verification. For hosted agents, enable external services and authorize the request.", flush=True)
+        print("Backend and Fetch receiver are ready." if args.backend_only else f"VigiloForge is ready on port {frontend_port} — keep this terminal open.", flush=True)
+        print("Hosted users sign in with a workspace key. For hosted agents, enable external services and authorize the request." if args.production else "Local scans need no email verification. For hosted agents, enable external services and authorize the request.", flush=True)
         print("Receiver readiness does not prove messaging; run scripts/check_fetch.py for a genuine local exchange. Ctrl+C stops this stack.", flush=True)
         while True:
             for name, child in children:
