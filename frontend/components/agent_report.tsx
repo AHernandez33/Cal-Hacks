@@ -17,6 +17,40 @@ export function decodeReport(value: unknown): unknown {
   return decoded;
 }
 
+const hiddenFields = new Set([
+  "prompt", "systemprompt", "userprompt", "instructions", "systeminstructions",
+  "input", "inputs", "inputtext", "inputpayload", "request", "requestpayload",
+  "measurements", "features", "approvedinputjson", "reportformat", "metadata",
+  "usage", "tokens", "tokencount", "model", "runid", "appid", "specialists",
+]);
+
+function answerOnly(value: unknown, depth = 0): unknown {
+  const decoded = decodeReport(value);
+  if (depth > 20) return null;
+  if (Array.isArray(decoded)) return decoded.map(item => answerOnly(item, depth + 1));
+  if (decoded && typeof decoded === "object") {
+    const entries = Object.entries(decoded).filter(([key, item]) => {
+      const normalized = key.replace(/[^a-z0-9]/gi, "").toLowerCase();
+      if (hiddenFields.has(normalized)) return false;
+      // Some apps put their echoed numerical request under observation(s).
+      if (["observation", "observations"].includes(normalized) && typeof item === "string" &&
+          /^(?:sanitized numeric|approved input|input (?:json|measurements))/i.test(item.trim())) return false;
+      return true;
+    });
+    return Object.fromEntries(entries.map(([key, item]) => [key, answerOnly(item, depth + 1)]));
+  }
+  if (typeof decoded === "string") {
+    // Prefer an explicitly delimited answer over a preceding echoed prompt.
+    const answer = decoded.match(/(?:^|\n)(?:#{1,6}\s*)?(?:\*\*)?(?:final answer|answer|response)(?:\*\*)?\s*:\s*([\s\S]*)$/i);
+    if (answer) return answerOnly(answer[1], depth + 1);
+    const heading = decoded.match(/(?:^|\n)#{1,6}\s+(?:final answer|answer|response)[ \t]*\n([\s\S]*)$/i);
+    if (heading) return answerOnly(heading[1], depth + 1);
+    if (/^\s*(?:#{1,6}\s*)?(?:prompt|system prompt|instructions)\s*:/i.test(decoded)) return {};
+    return decoded;
+  }
+  return decoded;
+}
+
 function label(key: string) {
   const words = key.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ").trim();
   return words ? words[0].toUpperCase() + words.slice(1) : "Details";
@@ -43,7 +77,7 @@ function prose(text: string): ReactNode[] | ReactNode {
       const decoded = decodeReport(fence[0]);
       parts.push(decoded === fence[0]
         ? <p key={`block-${index}`}>{fence[1]}</p>
-        : <ReportValue key={`block-${index}`} value={decoded} />);
+        : <ReportValue key={`block-${index}`} value={answerOnly(decoded)} />);
       cursor = start + fence[0].length;
     }
     if (cursor < text.length) parts.push(<Fragment key="after">{prose(text.slice(cursor))}</Fragment>);
@@ -88,7 +122,11 @@ function ReportValue({value, depth = 0}: {value: unknown; depth?: number}) {
   const decoded = decodeReport(value);
   if (depth > 20) return <p>This section is too deeply nested to display.</p>;
   if (decoded === null || decoded === undefined || decoded === "") return <p className="muted">Not provided.</p>;
-  if (typeof decoded === "string") return <>{prose(decoded)}</>;
+  if (typeof decoded === "string") {
+    if (/^\s*(?:\{|\[\s*(?:\{|["\d\]]))/.test(decoded) && decodeReport(decoded) === decoded)
+      return <p>The agent did not return a readable answer. Check its run in CREAO.</p>;
+    return <>{prose(decoded)}</>;
+  }
   if (typeof decoded === "boolean") return <p>{decoded ? "Yes" : "No"}</p>;
   if (typeof decoded === "number") return <p>{String(decoded)}</p>;
   if (Array.isArray(decoded)) return decoded.length
@@ -96,9 +134,9 @@ function ReportValue({value, depth = 0}: {value: unknown; depth?: number}) {
     : <p className="muted">No items provided.</p>;
   if (typeof decoded === "object") {
     const entries = Object.entries(decoded);
-    if (!entries.length) return <p className="muted">No details provided.</p>;
+    if (!entries.length) return <p className="muted">No answer content was returned.</p>;
     return <>{entries.map(([key, item]) => {
-      const wrapper = ["text", "result", "results", "output", "outputs", "content", "markdown"].includes(key.toLowerCase());
+      const wrapper = ["text", "result", "results", "output", "outputs", "content", "markdown", "answer", "final_answer", "response"].includes(key.toLowerCase());
       const Heading = depth > 0 ? "h5" : "h4";
       return <div className="agent-report-field" key={key}>
         {!wrapper && <Heading>{label(key)}</Heading>}
@@ -110,5 +148,5 @@ function ReportValue({value, depth = 0}: {value: unknown; depth?: number}) {
 }
 
 export default function AgentReport({value}: {value: unknown}) {
-  return <div className="agent-report"><ReportValue value={value} /></div>;
+  return <div className="agent-report"><ReportValue value={answerOnly(value)} /></div>;
 }

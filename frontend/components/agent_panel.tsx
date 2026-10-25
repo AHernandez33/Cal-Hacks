@@ -37,7 +37,7 @@ export default function AgentPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [report, setReport] = useState<Report | null>(null);
-  const [role, setRole] = useState("coordinator");
+  const [role, setRole] = useState("all");
   const [runs, setRuns] = useState<HostedRun[]>([]);
   const [pollUntil, setPollUntil] = useState(0);
   const generation = useRef(0);
@@ -249,11 +249,17 @@ export default function AgentPanel({
       </label>
       {provider === "creao" && <label className="field">CREAO agent
         <select aria-label="CREAO agent" disabled={busy} value={role} onChange={e => setRole(e.target.value)}>
-          {roles.map(r => <option key={r} value={r}>{r.replaceAll("_", " ")}</option>)}
           <option value="all">Run all 9 CREAO agents</option>
+          {roles.map(r => <option key={r} value={r}>{r.replaceAll("_", " ")}</option>)}
         </select>
         <span className="muted">Independent hosted runs. Specialists report missing inputs; no live sensor history or visitor data is supplied.</span>
       </label>}
+      {provider === "creao" && <div>
+        <p>{role === "all" ? "All 9 agents selected" : "Selected agent: " + role.replaceAll("_", " ")}</p>
+        <ul className="agent-roster" aria-label="Nine CREAO agents">
+          {roles.map(name => <li key={name}>{name.replaceAll("_", " ")}</li>)}
+        </ul>
+      </div>}
       {external && <div>
         <label className="consent">
           <input type="checkbox" checked={servicesEnabled === true}

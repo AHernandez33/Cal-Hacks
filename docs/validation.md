@@ -92,3 +92,8 @@ TypeScript, ESLint, production build, and 37 relevant backend tests passed (API 
 ## Readable nine-agent output
 
 TypeScript, ESLint, and the production build passed. Chromium exercised nine completed CREAO fixture outputs through the real app's image/permission/submission flow. Nested JSON text like the supplied screenshot, double-encoded strings, fenced JSON, mixed JSON/Markdown, object arrays, readable field labels, headings, lists, emphasis, and safe links all rendered without raw JSON result boxes. Zero, false, null, empty arrays, and uncertainty values retained their meaning. Provider-supplied script/HTML remained escaped text, unsafe Markdown links did not become executable links, and the page had no JavaScript errors or horizontal overflow at 390px. CREAO transport responses were mocked for these formatting checks; provider execution and content were not rewritten.
+
+
+## Nine visible agents and answer-only output
+
+TypeScript, ESLint, production build, and Chromium checks passed. The browser verified that CREAO defaults to all nine, the visible roster contains nine roles, and all nine completed fixture answers appear separately. Structured prompt/input/metadata markers, an echoed numerical input, and a plain-text Prompt section before Answer were absent from the rendered results. Nested JSON/Markdown answer rendering, values, uncertainty, safe links, script escaping, mobile layout, and absence of raw JSON boxes remained verified. Hosted responses were mocked for these display checks.

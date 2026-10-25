@@ -60,3 +60,8 @@ For CREAO or Fetch, select the provider in the agent panel and enable **Allow ex
 ## Readable agent reports
 
 All nine hosted agent results are displayed as normal headings, paragraphs, and lists. The renderer decodes JSON nested inside text/output fields, repeated JSON string encoding, and fenced JSON alongside Markdown. Field names such as primary_cause become readable labels. Markdown headings, lists, emphasis, and HTTPS/HTTP links are formatted without rendering provider-supplied HTML. Numeric values, uncertainty, and missing-input statements are preserved. The result no longer uses a fixed-height raw-JSON code box.
+
+
+## Nine-agent default and answer-only display
+
+Selecting CREAO defaults to **Run all 9 CREAO agents**, and all nine role names remain visible below the selector. Individual-agent selection is still available. Reports omit prompt/input echoes, request fields, numerical input bundles, and technical metadata while retaining answer fields, uncertainty, citations, and next observations. Nested JSON is decoded for presentation; malformed structured output shows a readable-answer notice rather than a JSON dump. Explicit Answer/Final answer sections are displayed without a preceding echoed prompt. These are presentation changes, not new hosted agent execution.
