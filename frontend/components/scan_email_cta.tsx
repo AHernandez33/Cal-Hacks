@@ -1,58 +1,97 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { getAccessToken, requestJSON, type VisionResponse } from "../lib/api";
+import { requestJSON, type VisionResponse } from "../lib/api";
+
+type Started = { request_id: string; message: string };
+type Finished = { sent: boolean; message: string };
 
 export default function ScanEmailCTA({ result }: { result: VisionResponse }) {
- const [email,setEmail]=useState("");
- const [consent,setConsent]=useState(false);
- const [busy,setBusy]=useState(false);
- const [message,setMessage]=useState("");
- const [sent,setSent]=useState(false);
- const signedIn=Boolean(getAccessToken());
- async function send(e: React.FormEvent<HTMLFormElement>) {
-   e.preventDefault();
-   if(!consent || !signedIn) return;
-   setBusy(true);setMessage("");
-   try {
-     const reply=await requestJSON<{sent:boolean;message:string}>("/reports/email",{
-       method:"POST",headers:{"Content-Type":"application/json"},
-       body:JSON.stringify({
-         email,consent_to_email:consent,
-         yellow_fraction:result.features.yellow_fraction,
-         brown_fraction:result.features.brown_fraction,
-         anomaly_score:result.anomaly_score,
-         leaf_coverage_fraction:result.leaf_coverage_fraction
-       })
-     });
-     setSent(reply.sent);setMessage(reply.message);
-   } catch(err) {
-     const detail=err instanceof Error?err.message:"Could not send report";
-     setMessage(detail.startsWith("404:")
-       ? "Email route not found on the API server. Restart FastAPI from VigiloForge-CLEAN, check /openapi.json for /reports/email, and verify NEXT_PUBLIC_API_URL points to that server."
-       : detail);
-   }
-   finally {setBusy(false);}
- }
- return <section className="scan-cta" aria-label="Email your crop results">
-   <p className="eyebrow">Your crop scan is complete</p>
-   <h3>Your crop insights shouldn't stop here.</h3>
-   <p>Your detailed numerical scan results are ready to email. Enter your address below to receive yellow-area, brown-area, visible-discoloration, and leaf-coverage measurements. The proposed 10-free-scans tier is not active yet.</p>
-   {!signedIn && <p className="warning">To prevent unwanted email, sign in with your private workspace first. Email/password registration and automatic free-tier unlock are not enabled yet. <Link href="/login">Open workspace sign in</Link></p>}
-   <form onSubmit={e=>void send(e)}>
-     <label className="field">Email address
-       <input type="email" autoComplete="email" value={email} maxLength={254} onChange={e=>setEmail(e.target.value)} required placeholder="you@example.com"/>
-     </label>
-     <label className="consent">
-       <input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/>
-       I agree to receive this one crop observation report by email. No photograph will be emailed.
-     </label>
-     <div className="actions">
-       <button type="submit" disabled={busy || sent || !consent || !signedIn}>{busy?"Sending…":sent?"Email accepted":"Email my crop results"}</button>
-       <Link href="/plans" className="button secondary">Explore Free, Gold & Platinum</Link>
-     </div>
-     <p role="status" className={sent?"muted":"warning"}>{message}</p>
-   </form>
-   <p className="muted">No marketing signup is created. SMTP delivery requires server setup. Emailing is optional; the scan completion notice and image heatmap remain visible without an email. Your numeric report is sent only when you request it.</p>
- </section>;
+  const [email, setEmail] = useState("");
+  const [consent, setConsent] = useState(false);
+  const [code, setCode] = useState("");
+  const [requestId, setRequestId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [message, setMessage] = useState("");
+
+  async function start(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!consent) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const data = await requestJSON<Started>("/reports/verify/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email, consent_to_email: consent,
+          yellow_fraction: result.features.yellow_fraction,
+          brown_fraction: result.features.brown_fraction,
+          anomaly_score: result.anomaly_score,
+          leaf_coverage_fraction: result.leaf_coverage_fraction,
+        }),
+      });
+      setRequestId(data.request_id);
+      setMessage(data.message);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not request verification.");
+    } finally { setBusy(false); }
+  }
+
+  async function confirm(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!requestId) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const data = await requestJSON<Finished>("/reports/verify/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ request_id: requestId, code: code.trim() }),
+      });
+      setSent(data.sent);
+      setMessage(data.message);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not verify code.");
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <section className="scan-cta" aria-label="Email crop results">
+      <p className="eyebrow">Crop scan complete</p>
+      <h3>Email your detailed results</h3>
+      <p>Verify that the inbox is yours, then receive your numerical observations. No workspace key or credit card is required for this report.</p>
+      {!requestId ? (
+        <form onSubmit={e => void start(e)}>
+          <label className="field">Email address
+            <input type="email" autoComplete="email" required maxLength={254}
+              value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" />
+          </label>
+          <label className="consent">
+            <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} />
+            I agree to receive a verification code and this one crop report by email. No photo is sent.
+          </label>
+          <button type="submit" disabled={busy || !consent}>{busy ? "Sending code…" : "Verify email & get my results"}</button>
+        </form>
+      ) : !sent ? (
+        <form onSubmit={e => void confirm(e)}>
+          <p>A six-digit verification code was requested for <strong>{email}</strong>. It expires after 10 minutes.</p>
+          <label className="field">Verification code
+            <input required inputMode="numeric" pattern="[0-9]{6}" maxLength={6}
+              value={code} onChange={e => setCode(e.target.value)} placeholder="123456" />
+          </label>
+          <div className="actions">
+            <button type="submit" disabled={busy || code.length !== 6}>{busy ? "Verifying…" : "Send my report"}</button>
+            <button type="button" className="secondary" onClick={() => {setRequestId("");setCode("");setMessage("");}}>Start over</button>
+          </div>
+        </form>
+      ) : (
+        <p>Report submitted to your email provider. Check your inbox and spam folder.</p>
+      )}
+      <p role="status" className="muted">{message}</p>
+      <p className="muted">This does not yet create a verified Free account or unlock 10 daily scans. Email sending requires configured SMTP on the backend.</p>
+      <Link href="/plans">Explore Free, Gold & Platinum</Link>
+    </section>
+  );
 }
