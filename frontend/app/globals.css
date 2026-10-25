@@ -1071,3 +1071,25 @@ blockquote {
   outline: none;
   background: transparent;
 }
+
+
+/* Clear on-page conversion CTA without obstructing the scan result */
+.scan-cta {
+  margin: 28px 0;
+  padding: clamp(18px, 3vw, 30px);
+  border: 1px solid #00ed6466;
+  border-radius: 12px;
+  background: linear-gradient(125deg, #0a2a1a 0%, #061610 55%, #061f25 100%);
+  box-shadow: 0 0 26px #00ed6413;
+}
+.scan-cta h3 {
+  color: #eafff6;
+  margin: 10px 0;
+  font-size: clamp(1rem, 2vw, 1.35rem);
+}
+.scan-cta .field { max-width: 460px; }
+.scan-cta .consent { margin: 16px 0; align-items: start; }
+.scan-cta .actions { margin-top: 20px; }
+@media(max-width: 540px) {
+  .scan-cta .actions > button, .scan-cta .actions > a { width: 100%; }
+}
