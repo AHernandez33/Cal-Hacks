@@ -9,7 +9,8 @@ export default function LaunchIntro() {
   // Replays on every full reload; respects the user's reduced-motion setting.
   useEffect(() => {
     if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setVisible(true);
+      const frame = requestAnimationFrame(() => setVisible(true));
+      return () => cancelAnimationFrame(frame);
     }
   }, []);
 

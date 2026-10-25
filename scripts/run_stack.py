@@ -4,11 +4,12 @@ from pathlib import Path
 import os
 import shutil
 import signal
+import secrets
 import socket
 import subprocess
 import sys
 import time
-from dotenv import load_dotenv
+from dotenv import load_dotenv, set_key
 
 root = Path(__file__).resolve().parent.parent
 load_dotenv(root / ".env")
@@ -37,6 +38,16 @@ def main():
         if os.name == "nt"
         else ["npm", "run", "dev", "--", "--hostname", "127.0.0.1"]
     )
+    if not os.getenv("VIGILO_REPORT_SECRET", "").strip():
+        secret = secrets.token_urlsafe(48)
+        set_key(str(root / ".env"), "VIGILO_REPORT_SECRET", secret)
+        os.environ["VIGILO_REPORT_SECRET"] = secret
+        print("Created a private report secret in .env; existing secrets are preserved.", flush=True)
+    child_env = os.environ.copy()
+    # This launcher always serves the local API, regardless of a deployment URL in .env.local.
+    child_env["NEXT_PUBLIC_API_URL"] = "http://127.0.0.1:8000"
+    origins = [v.strip() for v in child_env.get("FRONTEND_ORIGIN", "").split(",") if v.strip()]
+    child_env["FRONTEND_ORIGIN"] = ",".join(dict.fromkeys(origins + ["http://127.0.0.1:3000", "http://localhost:3000"]))
     commands = [
         (
             "API",
@@ -64,7 +75,7 @@ def main():
                     subprocess.Popen(
                         command,
                         cwd=directory,
-                        env=os.environ.copy(),
+                        env=child_env,
                         start_new_session=os.name != "nt",
                         creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
                         if os.name == "nt"
@@ -84,9 +95,15 @@ def main():
             "Fetch may need time to finish SDK startup. Use Check integration status on the dashboard; then send a consented request. Ctrl+C stops this stack.",
             flush=True,
         )
+        reported = set()
         while True:
             for name, child in children:
                 if child.poll() is not None:
+                    if name == "Fetch receiver":
+                        if name not in reported:
+                            print("Fetch receiver stopped. The API and website remain available; use local investigations and check integration status before retrying Fetch.", flush=True)
+                            reported.add(name)
+                        continue
                     raise RuntimeError(
                         f"{name} stopped with exit code {child.returncode}. Read its error above."
                     )

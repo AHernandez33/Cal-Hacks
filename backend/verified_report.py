@@ -30,18 +30,26 @@ class ConfirmRequest(BaseModel):
     request_id: str = Field(min_length=20, max_length=100)
     code: str = Field(pattern=r"^\d{6}$")
 
-def config():
+def email_status():
     from pathlib import Path
     from dotenv import load_dotenv
     load_dotenv(Path(__file__).resolve().parent.parent / ".env")
-    host = os.getenv("VIGILO_SMTP_HOST", "").strip()
-    sender = os.getenv("VIGILO_SMTP_FROM", "").strip()
-    user = os.getenv("VIGILO_SMTP_USER", "").strip()
-    password = os.getenv("VIGILO_SMTP_PASSWORD", "")
-    pepper = os.getenv("VIGILO_REPORT_SECRET", "")
-    if not all((host, sender, user, password, pepper)) or len(pepper) < 32:
-        raise HTTPException(503, "Verified email is not configured. Set SMTP and VIGILO_REPORT_SECRET.")
-    return host, sender, user, password, pepper
+    names = ("VIGILO_SMTP_HOST", "VIGILO_SMTP_FROM", "VIGILO_SMTP_USER", "VIGILO_SMTP_PASSWORD", "VIGILO_REPORT_SECRET")
+    missing = [name for name in names if not os.getenv(name, "").strip()]
+    if "VIGILO_REPORT_SECRET" not in missing and len(os.getenv("VIGILO_REPORT_SECRET", "")) < 32:
+        missing.append("VIGILO_REPORT_SECRET")
+    return {"available": not missing, "missing_settings": missing,
+            "message": "Email is configured; delivery still depends on the provider." if not missing else "Email delivery is unavailable. You can download your report without providing an email address."}
+
+@router.get("/status")
+def status():
+    return email_status()
+
+def config():
+    state = email_status()
+    if not state["available"]:
+        raise HTTPException(503, "Email delivery is not configured. Missing or invalid settings: " + ", ".join(state["missing_settings"]) + ". Download your report instead, or ask the server owner to configure email.")
+    return tuple(os.getenv(name, "").strip() for name in ("VIGILO_SMTP_HOST", "VIGILO_SMTP_FROM", "VIGILO_SMTP_USER", "VIGILO_SMTP_PASSWORD", "VIGILO_REPORT_SECRET"))
 
 def send_mail(destination, subject, content, cfg):
     host, sender, user, password, _ = cfg
@@ -110,15 +118,20 @@ def start(req: StartRequest, request: Request):
 def confirm(req: ConfirmRequest):
     cfg = config()
     init()
+    incorrect = False
     with databases.connection() as db:
+        db.execute("BEGIN IMMEDIATE")
         row = db.execute("SELECT * FROM verified_report_requests WHERE id=?", (req.request_id,)).fetchone()
         if not row or row["fulfilled"] or row["expires_at"] < int(time.time()) or row["attempts"] >= 5:
             raise HTTPException(400, "Code expired, already used, or too many attempts.")
         db.execute("UPDATE verified_report_requests SET attempts=attempts+1 WHERE id=?", (req.request_id,))
         if not hmac.compare_digest(row["code_digest"], digest(req.request_id+":"+req.code,cfg[4])):
-            raise HTTPException(400, "Incorrect code.")
+            incorrect = True
         # Consume before calling the provider to avoid multiple reports on concurrent attempts.
-        db.execute("UPDATE verified_report_requests SET fulfilled=1 WHERE id=?", (req.request_id,))
+        if not incorrect:
+            db.execute("UPDATE verified_report_requests SET fulfilled=1 WHERE id=?", (req.request_id,))
+    if incorrect:
+        raise HTTPException(400, "Incorrect code.")
     values = json.loads(row["payload"])
     body = ("VigiloForge numerical crop observations (heuristic, not a disease diagnosis)\n\n"
         f"Yellow area: {values['yellow_fraction']*100:.1f}%\n"
@@ -127,5 +140,10 @@ def confirm(req: ConfirmRequest):
         f"Leaf coverage: {values['leaf_coverage_fraction']*100:.1f}%\n\n"
         "No photograph attached. Results vary with lighting and framing.\n"
         "This verification does not create an account or unlock additional scans.")
-    send_mail(row["email"], "Your VigiloForge crop report", body, cfg)
+    try:
+        send_mail(row["email"], "Your VigiloForge crop report", body, cfg)
+    except HTTPException:
+        with databases.connection() as db:
+            db.execute("UPDATE verified_report_requests SET fulfilled=0 WHERE id=?", (req.request_id,))
+        raise
     return {"sent": True, "message": "Report accepted by your email provider."}
