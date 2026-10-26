@@ -44,3 +44,16 @@ The existing `tests/test_fetch_message.py` is an interactive continuous demonstr
 - Authorized workspaces share the installation's telemetry feed. Per-farm database isolation is not implemented.
 
 See `integrations_setup.md` for the exact outside actions needed to complete provider and corpus setup.
+
+## Launch-experience branch: email/startup repair
+
+The missing-SMTP 503 was reproduced in `/reports/verify/start`. This remains a real external configuration requirement; no credentials were fabricated and no email was sent during validation.
+
+- Added public email-capability status (setting names only, never credential values).
+- A real browser upload now reaches an SMTP-independent text report download. Missing email configuration hides the send form and explains availability instead of leading users into a 503 submission. Browser download content was checked against the numerical observations; no account or address was required.
+- Fixed incorrect-code attempt counting: rejection previously rolled back the increment, allowing repeated guesses. The attempts now persist and are capped. Failed provider acceptance also leaves a valid code retryable instead of reporting success or silently consuming the report.
+- Six isolated verification tests passed with mocked SMTP (no actual delivery). Existing API (17), workspace (12), federated (5), and integration (5) suites passed: 45 terminating tests in total.
+- TypeScript, lint and production build passed. Fixed two pre-existing JSX lint errors and the introduction-animation effect error on this branch.
+- Fetch entrypoint now checks an occupied receiver port before loading/starting the SDK. Local stack pins its API URL, includes local CORS origins, and generates a private report secret in the ignored .env file only when missing (without displaying it). Optional receiver termination no longer intentionally terminates the API/website; native Windows process behavior still needs verification on the user's machine.
+
+Real SMTP delivery, a live CREAO run, real reviewed scientific passages, and the user's Windows processes are not validated by these tests.

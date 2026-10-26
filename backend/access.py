@@ -7,7 +7,7 @@ from backend.identity import workspace_id
 
 
 async def require_access(request: Request):
-    public = request.url.path in {"/health", "/auth/login"}
+    public = request.url.path in {"/health", "/auth/login", "/reports/verify/start", "/reports/verify/confirm", "/reports/verify/status"}
     identity = "local"
     supplied = request.headers.get("Authorization", "")
     bearer = supplied.removeprefix("Bearer ") if supplied.startswith("Bearer ") else ""

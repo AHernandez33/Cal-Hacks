@@ -30,7 +30,7 @@ export default function BrandHero() {
             <span className="logo-flare" aria-hidden="true" />
           </>
         ) : (
-          <p className="logo-notice">Original logo artwork awaiting upload.</p>
+          <p className="logo-notice">Logo asset missing: add vigiloforge-logo.png to frontend/public.</p>
         )}
         <span className="logo-stage-line" aria-hidden="true" />
       </div>

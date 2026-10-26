@@ -52,11 +52,18 @@ export async function requestJSON<T>(
   const headers = new Headers(init?.headers);
   const token = getAccessToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers,
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers,
+      cache: "no-store",
+    });
+  } catch {
+    throw new Error(
+      `Cannot reach the API at ${API_BASE}. Keep the backend running on port 8000 and check that FRONTEND_ORIGIN includes this website address (${typeof window !== "undefined" ? window.location.origin : "browser"}).`,
+    );
+  }
   const text = await response.text();
   let body: unknown;
   try {
@@ -69,6 +76,14 @@ export async function requestJSON<T>(
       body && typeof body === "object" && "detail" in body
         ? (body as { detail: unknown }).detail
         : body;
+    if (
+      response.status === 401 &&
+      token &&
+      typeof detail === "string" &&
+      /session expired or revoked|access token not recognized/i.test(detail)
+    ) {
+      setAccessToken("");
+    }
     throw new Error(
       `${response.status}: ${typeof detail === "string" ? detail : JSON.stringify(detail)}`,
     );
@@ -82,10 +97,25 @@ export async function analyzeImage(image: Blob): Promise<VisionResponse> {
     image,
     image.type === "image/png" ? "leaf.png" : "leaf.jpg",
   );
-  return requestJSON<VisionResponse>("/vision/analyze", {
-    method: "POST",
-    body: form,
-  });
+  try {
+    return await requestJSON<VisionResponse>("/vision/analyze", {
+      method: "POST",
+      body: form,
+    });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      /^401:.*session expired or revoked/i.test(error.message)
+    ) {
+      // The invalid token has been cleared. Retry only the local image request.
+      // Do not retry authenticated actions such as email or account updates.
+      return requestJSON<VisionResponse>("/vision/analyze", {
+        method: "POST",
+        body: form,
+      });
+    }
+    throw error;
+  }
 }
 export async function fetchInvestigation(
   features: LeafFeatures,

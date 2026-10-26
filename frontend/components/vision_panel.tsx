@@ -1,5 +1,6 @@
 "use client";
 import Image from "next/image";
+import ScanEmailCTA from "./scan_email_cta";
 import { useEffect, useRef, useState } from "react";
 import { analyzeImage, type VisionResponse } from "../lib/api";
 
@@ -97,8 +98,8 @@ export default function VisionPanel({ onAnalyzed }: Props) {
     <section className="panel">
       <h2>Leaf imaging</h2>
       <p className="muted">
-        NexiGo or any browser-accessible webcam. OpenCV reports heuristic
-        observations, not a validated disease diagnosis.
+        Use your camera or upload a crop photo. Results show visual observations,
+        not a confirmed disease diagnosis.
       </p>
       <div className="camera-controls">
         <label className="field">
@@ -179,62 +180,20 @@ export default function VisionPanel({ onAnalyzed }: Props) {
       )}
       {result && (
         <>
-          <h3>Latest observations</h3>
-          <div className="metric-cards observation-metrics">
-            {[
-              {
-                name: "Yellow area",
-                value: `${(result.features.yellow_fraction * 100).toFixed(1)}%`,
-                meaning: "Fraction of the detected leaf classified as yellow.",
-              },
-              {
-                name: "Brown area",
-                value: `${(result.features.brown_fraction * 100).toFixed(1)}%`,
-                meaning: "Fraction classified as brown.",
-              },
-              {
-                name: "Visible discoloration",
-                value: `${(result.anomaly_score * 100).toFixed(1)} / 100`,
-                meaning: "A heuristic index, not a disease probability.",
-              },
-              {
-                name: "Leaf coverage",
-                value: `${(result.leaf_coverage_fraction * 100).toFixed(1)}%`,
-                meaning: "How much of the frame was detected as leaf.",
-              },
-            ].map((item) => (
-              <article key={item.name}>
-                <span>{item.name}</span>
-                <strong>{item.value}</strong>
-                <small>{item.meaning}</small>
-              </article>
-            ))}
-          </div>
-          <h3>How to read the heatmap</h3>
-          <p>
-            Colored highlights mark areas the simple color rules classified as
-            yellow or brown. Unhighlighted areas keep their original appearance.
-            Lighting and background can change the result.
+          <h3>Crop scan complete</h3>
+          <p className="muted">
+            Your image was analyzed using visual heuristics. The detailed
+            numerical observations are packaged in the optional email report
+            below, rather than displayed publicly on this screen.
           </p>
           <p className="muted">
-            This is not a temperature map, a disease diagnosis, or a confidence
-            score. Use it to decide where to look more closely.
+            This is not a confirmed crop disease diagnosis. Lighting,
+            backgrounds, and camera settings can affect the analysis.
           </p>
           {result.warnings.map((warning) => (
-            <p key={warning} className="warning">
-              {warning}
-            </p>
+            <p key={warning} className="warning">{warning}</p>
           ))}
-          <details>
-            <summary>All numerical observations</summary>
-            <pre className="code-result">
-              {JSON.stringify(
-                { ...result, heatmap_data_url: undefined },
-                null,
-                2,
-              )}
-            </pre>
-          </details>
+          <ScanEmailCTA result={result} />
           {typeof result.heatmap_data_url === "string" &&
             result.heatmap_data_url.startsWith("data:image/") && (
               <Image
